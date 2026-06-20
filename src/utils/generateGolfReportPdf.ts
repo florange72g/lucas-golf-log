@@ -1,5 +1,6 @@
 import type { PlayerProfile, Round } from '../types';
 import { normalizeMental } from '../types';
+import { drawFullScorecard } from './pdfScorecard';
 import {
   calcTotalScore,
   countFairways,
@@ -10,7 +11,6 @@ import {
 } from './stats';
 
 const FAIRWAY = { r: 27, g: 67, b: 50 };
-const CREAM = { r: 248, g: 246, b: 240 };
 const GOLD = { r: 212, g: 168, b: 83 };
 const TEXT = { r: 27, g: 53, b: 40 };
 const MUTED = { r: 100, g: 120, b: 110 };
@@ -50,7 +50,7 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
-  const margin = 22;
+  const margin = 14;
   const contentW = pageW - margin * 2;
   let y = 0;
 
@@ -113,33 +113,25 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   };
 
   doc.setFillColor(FAIRWAY.r, FAIRWAY.g, FAIRWAY.b);
-  doc.rect(0, 0, pageW, 34, 'F');
+  doc.rect(0, 0, pageW, 38, 'F');
   doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.rect(0, 34, pageW, 1.5, 'F');
+  doc.rect(0, 38, pageW, 1.5, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(17);
+  doc.setFontSize(18);
   doc.setTextColor(255, 255, 255);
-  doc.text('Round Report', margin, 14);
+  doc.text(round.courseName || 'Golf Scorecard', margin, 15);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.text(profile.name, margin, 22);
+  doc.text(formatReportDate(round.date), margin, 23);
 
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setTextColor(220, 230, 220);
-  doc.text('GOLF Log', margin, 28);
+  doc.text(`${profile.name} · Round Report`, margin, 30);
 
-  y = 44;
-
-  doc.setFillColor(CREAM.r, CREAM.g, CREAM.b);
-  doc.roundedRect(margin - 2, y - 3, contentW + 4, 3, 1, 1, 'F');
-
-  drawInline('Course', round.courseName || '—');
-  drawInline('Date', formatReportDate(round.date));
-
-  gap(4);
+  y = 46;
 
   ensureSpace(14);
   doc.setFillColor(FAIRWAY.r, FAIRWAY.g, FAIRWAY.b);
@@ -153,12 +145,17 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   doc.text(`${total} (${toPar})`, margin + 26, y + 8.5);
   y += 18;
 
-  gap(2);
+  ensureSpace(95);
+  const scorecardResult = drawFullScorecard(doc, margin, y, contentW, round.holes);
+  y = scorecardResult.endY;
+
+  gap(4);
+  drawSection('Round Statistics');
   drawInline('Fairways', fw.total ? `${fw.hit}/${fw.total}` : '—');
   drawInline('GIR', gir.total ? `${gir.hit}/${gir.total}` : '—');
   drawInline('Putts', puttTotal ? String(puttTotal) : '—');
 
-  gap(6);
+  gap(4);
   drawSection('Mental Review');
   drawInline('Focus', stars(mental.focus));
   drawInline('Confidence', stars(mental.confidence));
@@ -191,3 +188,15 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
 export async function generateGolfReportPdf(profile: PlayerProfile, round: Round): Promise<void> {
   return generateRoundPdf(profile, round);
 }
+
+// Re-export PDF scorecard helpers for consumers and tests
+export {
+  calcTotalYards,
+  drawCircle,
+  drawDoubleCircle,
+  drawDoubleSquare,
+  drawFullScorecard,
+  drawSquare,
+  getScoreMarkerType,
+} from './pdfScorecard';
+export type { ScoreMarkerType } from './pdfScorecard';

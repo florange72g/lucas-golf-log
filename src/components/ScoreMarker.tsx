@@ -1,11 +1,13 @@
-export default function ScoreMarker({ score, par }: { score: number; par: number }) {
-  const diff = score - par;
+import { getScoreMarkerType } from '../utils/scoreMarker';
 
-  if (diff === 0) {
+export default function ScoreMarker({ score, par }: { score: number; par: number }) {
+  const marker = getScoreMarkerType(score, par);
+
+  if (marker === 'par') {
     return <span className="score-marker">{score}</span>;
   }
 
-  if (diff <= -2) {
+  if (marker === 'eagle') {
     return (
       <span className="score-marker double-circle">
         <span>{score}</span>
@@ -13,11 +15,11 @@ export default function ScoreMarker({ score, par }: { score: number; par: number
     );
   }
 
-  if (diff === -1) {
+  if (marker === 'birdie') {
     return <span className="score-marker circle">{score}</span>;
   }
 
-  if (diff === 1) {
+  if (marker === 'bogey') {
     return <span className="score-marker square">{score}</span>;
   }
 
