@@ -46,6 +46,24 @@ export function buildGolfReportFilename(profile: PlayerProfile, round: Round): s
   return roundPdfFilename(profile.name, round.date);
 }
 
+function openPdfInNewTab(doc: import('jspdf').jsPDF): void {
+  const pdfBlob = doc.output('blob');
+  const pdfUrl = URL.createObjectURL(pdfBlob);
+  const newTab = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+
+  if (!newTab) {
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000);
+}
+
 export async function generateRoundPdf(profile: PlayerProfile, round: Round): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -182,7 +200,7 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   doc.setLineWidth(0.2);
   doc.line(margin, y, pageW - margin, y);
 
-  doc.save(roundPdfFilename(profile.name, round.date));
+  openPdfInNewTab(doc);
 }
 
 export async function generateGolfReportPdf(profile: PlayerProfile, round: Round): Promise<void> {
