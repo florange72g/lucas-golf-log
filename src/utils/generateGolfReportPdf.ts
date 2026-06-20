@@ -15,9 +15,9 @@ const GOLD = { r: 212, g: 168, b: 83 };
 const TEXT = { r: 27, g: 53, b: 40 };
 const MUTED = { r: 100, g: 120, b: 110 };
 
-function stars(rating: number): string {
+function pdfRatingStars(rating: number): string {
   const n = Math.min(5, Math.max(0, Math.round(rating)));
-  return `${'★'.repeat(n)}${'☆'.repeat(5 - n)}`;
+  return '*'.repeat(n);
 }
 
 function roundPdfFilename(playerName: string, dateIso: string): string {
@@ -157,10 +157,10 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
 
   gap(4);
   drawSection('Mental Review');
-  drawInline('Focus', stars(mental.focus));
-  drawInline('Confidence', stars(mental.confidence));
-  drawInline('Emotional Control', stars(mental.emotionalControl));
-  drawInline('Course Management', stars(mental.courseManagement));
+  drawInline('Focus', pdfRatingStars(mental.focus));
+  drawInline('Confidence', pdfRatingStars(mental.confidence));
+  drawInline('Emotional Control', pdfRatingStars(mental.emotionalControl));
+  drawInline('Course Management', pdfRatingStars(mental.courseManagement));
 
   gap(2);
   drawReflection('Highlight of the Round', mental.highlightOfRound);
