@@ -193,11 +193,30 @@ export interface Round {
   weather: string;
   roundType: RoundType;
   tournamentName?: string;
+  courseHandicap: string;
+  slopeRating: string;
   holes: HoleEntry[];
   mental: MentalPerformance;
   coach: CoachReflection;
   completed: boolean;
   createdAt: string;
+}
+
+export interface SavedCourseHole {
+  holeNumber: number;
+  par: number;
+  yardage: number;
+}
+
+export interface SavedCourse {
+  id: string;
+  courseName: string;
+  totalHoles: number;
+  holes: SavedCourseHole[];
+  courseHandicap: string;
+  slopeRating: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function isTournamentRound(round: Pick<Round, 'roundType'>): boolean {
@@ -271,6 +290,8 @@ export function createEmptyRound(): Round {
     teeBox: 'Championship',
     weather: 'Clear',
     roundType: 'practice',
+    courseHandicap: '',
+    slopeRating: '',
     holes: Array.from({ length: 18 }, (_, i) => createEmptyHole(i)),
     mental: { ...DEFAULT_MENTAL },
     coach: { ...DEFAULT_COACH },

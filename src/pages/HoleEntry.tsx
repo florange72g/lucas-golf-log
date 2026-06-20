@@ -218,12 +218,12 @@ export default function HoleEntry() {
         </div>
 
         <div className="rounded-2xl border border-sand bg-white p-4 shadow-sm">
-          <label className="mb-1.5 block text-sm font-semibold text-fairway-800">Notes</label>
+          <label className="mb-1.5 block text-sm font-semibold text-fairway-800">Personal Note</label>
           <textarea
             value={hole.notes}
             onChange={(e) => updateHole({ notes: e.target.value })}
             rows={3}
-            placeholder="Add notes about this hole..."
+            placeholder="Add your own note for this hole..."
             className="input-field min-h-[5.5rem] resize-y text-base leading-relaxed"
           />
         </div>

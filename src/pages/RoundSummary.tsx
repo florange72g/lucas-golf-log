@@ -52,6 +52,7 @@ export default function RoundSummary() {
   const putts = countPutts(round.holes);
   const dist = scoreDistribution(round.holes);
   const isActive = id === 'active';
+  const holesWithNotes = round.holes.filter((hole) => hole.notes.trim());
 
   const handleComplete = () => {
     saveActiveRound();
@@ -170,6 +171,20 @@ export default function RoundSummary() {
             <ScorecardRow holes={backNine(round.holes)} label="In" />
           </div>
         </section>
+
+        {holesWithNotes.length > 0 && (
+          <section className="rounded-xl border border-sand bg-white p-4">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-fairway-600">Personal Notes</h2>
+            <dl className="mt-3 space-y-3 text-sm">
+              {holesWithNotes.map((hole) => (
+                <div key={hole.hole}>
+                  <dt className="font-semibold text-fairway-700">Hole {hole.hole}</dt>
+                  <dd className="mt-0.5 text-fairway-500">{hole.notes}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
 
         {(round.mental.highlightOfRound || round.mental.keyLearning || round.mental.practiceFocus) && (
           <section className="rounded-xl border border-sand bg-white p-4">

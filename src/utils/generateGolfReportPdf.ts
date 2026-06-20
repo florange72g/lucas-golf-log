@@ -33,13 +33,12 @@ function formatReportDate(dateIso: string): string {
   });
 }
 
-function buildNotes(round: Round): string {
-  const parts: string[] = [];
-  if (round.coach.strengths.trim()) parts.push(round.coach.strengths.trim());
-  if (round.coach.improvements.trim()) parts.push(round.coach.improvements.trim());
-  if (round.coach.practiceFocus.trim()) parts.push(round.coach.practiceFocus.trim());
-  if (round.coach.goals.trim()) parts.push(round.coach.goals.trim());
-  return parts.join('\n\n') || '—';
+function buildPlayerNotes(round: Round): string {
+  const lines = round.holes
+    .filter((hole) => hole.notes.trim())
+    .map((hole) => `Hole ${hole.hole}: ${hole.notes.trim()}`);
+
+  return lines.join('\n\n') || '—';
 }
 
 export function buildGolfReportFilename(profile: PlayerProfile, round: Round): string {
@@ -78,7 +77,7 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   const total = calcTotalScore(round.holes);
   const puttTotal = totalPutts(round.holes);
   const toPar = formatScoreToPar(scoreToPar(round.holes));
-  const notes = buildNotes(round);
+  const playerNotes = buildPlayerNotes(round);
 
   const ensureSpace = (needed: number) => {
     const pageH = doc.internal.pageSize.getHeight();
@@ -151,6 +150,11 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
 
   y = 46;
 
+  drawInline('Course Handicap', round.courseHandicap.trim() || '—');
+  drawInline('Slope Rating', round.slopeRating.trim() || '—');
+
+  gap(2);
+
   ensureSpace(14);
   doc.setFillColor(FAIRWAY.r, FAIRWAY.g, FAIRWAY.b);
   doc.roundedRect(margin, y, contentW, 13, 2, 2, 'F');
@@ -186,11 +190,11 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   drawReflection('Practice Focus', mental.practiceFocus);
 
   gap(4);
-  drawSection('Notes');
+  drawSection('Personal Notes');
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-  const noteLines = doc.splitTextToSize(notes, contentW);
+  const noteLines = doc.splitTextToSize(playerNotes, contentW);
   ensureSpace(noteLines.length * 5 + 4);
   doc.text(noteLines, margin, y);
   y += noteLines.length * 5 + 6;

@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
-import TodaysRoundSummary from '../components/TodaysRoundSummary';
 import { useGolf } from '../context/GolfContext';
 import { isTournamentRound, formatHandicap } from '../types';
 import { calcTotalScore, completedRounds, formatScoreToPar, formatScoringAverage, roundStats, scoreToPar } from '../utils/stats';
@@ -10,7 +9,6 @@ export default function Dashboard() {
   const { rounds, profile, activeRound } = useGolf();
   const stats = roundStats(rounds);
   const recent = completedRounds(rounds).slice(0, 3);
-  const latestRound = recent[0] ?? null;
 
   return (
     <>
@@ -48,16 +46,6 @@ export default function Dashboard() {
           <StatCard label="Best Round" value={stats.bestScore || '—'} />
           <StatCard label="Worst Round" value={stats.worstScore || '—'} />
         </div>
-
-        {latestRound && (
-          <Link to={`/round-summary/${latestRound.id}`} className="block">
-            <TodaysRoundSummary
-              score={calcTotalScore(latestRound.holes)}
-              toPar={scoreToPar(latestRound.holes)}
-              coach={latestRound.coach}
-            />
-          </Link>
-        )}
 
         <section>
           <div className="mb-3 flex items-center justify-between">

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { PlayerProfile, Round } from '../types';
+import type { PlayerProfile, Round, SavedCourse } from '../types';
 import { createEmptyRound } from '../types';
+import { applySavedCourseToRound, loadSavedCourses, saveSavedCourses, seedSavedCoursesFromRounds, upsertSavedCourse } from '../utils/savedCourses';
 import { loadProfile, loadRounds, normalizeRoundHoles, saveProfile, saveRounds } from '../utils/storage';
 
 function findInProgressRound(rounds: Round[]): Round | null {
@@ -9,6 +10,7 @@ function findInProgressRound(rounds: Round[]): Round | null {
 
 interface GolfContextValue {
   rounds: Round[];
+  savedCourses: SavedCourse[];
   profile: PlayerProfile;
   activeRound: Round | null;
   editingSavedRound: boolean;
@@ -16,6 +18,7 @@ interface GolfContextValue {
   startNewRound: () => Round;
   setActiveRound: (round: Round | null) => void;
   updateActiveRound: (updates: Partial<Round>) => void;
+  applySavedCourse: (course: SavedCourse) => void;
   saveActiveRound: () => void;
   saveEditedRound: () => void;
   loadRoundForEdit: (id: string) => boolean;
@@ -29,6 +32,9 @@ const GolfContext = createContext<GolfContextValue | null>(null);
 
 export function GolfProvider({ children }: { children: ReactNode }) {
   const [rounds, setRounds] = useState<Round[]>(() => loadRounds());
+  const [savedCourses, setSavedCourses] = useState<SavedCourse[]>(() =>
+    seedSavedCoursesFromRounds(loadRounds(), loadSavedCourses()),
+  );
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
   const [activeRound, setActiveRoundState] = useState<Round | null>(() =>
     findInProgressRound(loadRounds()),
@@ -38,6 +44,14 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveRounds(rounds);
   }, [rounds]);
+
+  useEffect(() => {
+    saveSavedCourses(savedCourses);
+  }, [savedCourses]);
+
+  const persistCourseProfile = (round: Round) => {
+    setSavedCourses((prev) => upsertSavedCourse(prev, round));
+  };
 
   // Keep in-progress round persisted while editing (survives refresh / mobile tab switch)
   useEffect(() => {
@@ -83,6 +97,13 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const applySavedCourse = (course: SavedCourse) => {
+    setActiveRoundState((prev) => {
+      if (!prev) return prev;
+      return normalizeRoundHoles(applySavedCourseToRound(prev, course));
+    });
+  };
+
   const saveActiveRound = () => {
     if (!activeRound) return;
     const normalized = normalizeRoundHoles(activeRound);
@@ -96,6 +117,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
       }
       return [normalized, ...prev];
     });
+    persistCourseProfile(normalized);
   };
 
   const saveEditedRound = () => {
@@ -116,6 +138,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     });
     setActiveRoundState(null);
     setEditingSavedRound(false);
+    persistCourseProfile(normalized);
   };
 
   const loadRoundForEdit = (id: string): boolean => {
@@ -166,6 +189,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     <GolfContext.Provider
       value={{
         rounds,
+        savedCourses,
         profile,
         activeRound,
         editingSavedRound,
@@ -173,6 +197,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         startNewRound,
         setActiveRound,
         updateActiveRound,
+        applySavedCourse,
         saveActiveRound,
         saveEditedRound,
         loadRoundForEdit,

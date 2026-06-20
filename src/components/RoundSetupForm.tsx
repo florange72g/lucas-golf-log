@@ -1,4 +1,5 @@
 import { useGolf } from '../context/GolfContext';
+import CourseNameAutocomplete from './CourseNameAutocomplete';
 import { ROUND_TYPES, normalizeHole, type HoleEntry, type RoundType } from '../types';
 
 const WEATHER_OPTIONS = ['Clear', 'Cloudy', 'Windy', 'Rain', 'Cold', 'Hot'] as const;
@@ -18,7 +19,7 @@ export default function RoundSetupForm({
   secondaryLabel,
   onSecondary,
 }: RoundSetupFormProps) {
-  const { activeRound, updateActiveRound } = useGolf();
+  const { activeRound, updateActiveRound, savedCourses, applySavedCourse } = useGolf();
   if (!activeRound) return null;
 
   const round = activeRound;
@@ -75,12 +76,11 @@ export default function RoundSetupForm({
     <div className="space-y-4 px-4 pt-1 pb-6">
       <section className="rounded-2xl border border-sand bg-white p-4 shadow-sm">
         <Field label="Course Name">
-          <input
-            type="text"
+          <CourseNameAutocomplete
             value={round.courseName}
-            onChange={(e) => updateActiveRound({ courseName: e.target.value })}
-            placeholder="e.g. Pine Valley GC"
-            className="input-field"
+            courses={savedCourses}
+            onChange={(courseName) => updateActiveRound({ courseName })}
+            onSelectCourse={applySavedCourse}
           />
         </Field>
 
@@ -145,7 +145,30 @@ export default function RoundSetupForm({
           Enter par and yardage for each hole before starting.
         </p>
 
-        <div className="mb-2 grid grid-cols-[2.5rem_1fr_1fr] gap-2 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-fairway-400">
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <Field label="Handicap">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={round.courseHandicap}
+              onChange={(e) => updateActiveRound({ courseHandicap: e.target.value })}
+              placeholder="e.g. 12"
+              className="input-field"
+            />
+          </Field>
+          <Field label="Slope">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={round.slopeRating}
+              onChange={(e) => updateActiveRound({ slopeRating: e.target.value })}
+              placeholder="e.g. 130"
+              className="input-field"
+            />
+          </Field>
+        </div>
+
+        <div className="mb-2 grid grid-cols-[3.25rem_1fr_1fr] gap-2 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-fairway-400">
           <span>Hole</span>
           <span className="text-center">Par</span>
           <span className="text-center">Yards</span>
@@ -155,7 +178,7 @@ export default function RoundSetupForm({
           {round.holes.map((hole, index) => (
             <div
               key={hole.hole}
-              className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
+              className="grid grid-cols-[3.25rem_1fr_1fr] items-center gap-2"
             >
               <span className="text-sm font-bold text-fairway-800">Hole {hole.hole}</span>
               <input

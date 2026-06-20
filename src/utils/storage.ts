@@ -24,6 +24,8 @@ function normalizeRound(raw: Round & { tournament?: boolean }): Round {
     ...round,
     roundType,
     teeBox,
+    courseHandicap: round.courseHandicap ?? '',
+    slopeRating: round.slopeRating ?? '',
     mental: normalizeMental(round.mental),
     holes: round.holes.map(normalizeHole),
   };
