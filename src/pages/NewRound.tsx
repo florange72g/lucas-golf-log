@@ -79,6 +79,9 @@ export default function NewRound() {
     return Math.min(700, Math.max(0, Math.round(parsed)));
   };
 
+  const totalPar = round.holes.reduce((sum, hole) => sum + hole.par, 0);
+  const totalYards = round.holes.reduce((sum, hole) => sum + hole.yards, 0);
+
   return (
     <>
       <PageHeader title="Round Setup" subtitle="Configure your round" backTo="/" />
@@ -194,6 +197,16 @@ export default function NewRound() {
                 />
               </div>
             ))}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-sand bg-cream px-3 py-2.5">
+            <p className="text-sm font-bold text-fairway-800">TOTAL:</p>
+            <p className="mt-1 text-sm text-fairway-700">
+              Total Par: <span className="font-bold text-fairway-800">{totalPar}</span>
+            </p>
+            <p className="text-sm text-fairway-700">
+              Total Yards: <span className="font-bold text-fairway-800">{totalYards}</span>
+            </p>
           </div>
         </section>
 
