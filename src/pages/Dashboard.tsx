@@ -55,7 +55,6 @@ export default function Dashboard() {
             <QuickAction to="/new-round" label="New Round" desc="Log a round" />
             <QuickAction to="/rounds" label="Round History" desc="View saved rounds" />
             <QuickAction to="/mental" label="Mental Game" desc="Rate mindset" />
-            <QuickAction to="/coach" label="Coach Notes" desc="Reflection" />
             <QuickAction to="/statistics" label="Statistics" desc="View trends" />
           </div>
         </section>
