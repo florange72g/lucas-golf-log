@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
+import TodaysRoundSummary from '../components/TodaysRoundSummary';
 import FairwayStats from '../components/FairwayStats';
 import GIRStats from '../components/GIRStats';
 import PuttsStats from '../components/PuttsStats';
@@ -123,6 +124,13 @@ export default function RoundSummary() {
             </div>
           </div>
         </div>
+
+        <TodaysRoundSummary
+          score={total}
+          toPar={toPar}
+          coach={round.coach}
+          showCoachLink={isActive}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-sand bg-white p-4 shadow-sm">

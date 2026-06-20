@@ -19,6 +19,10 @@
     background-size: 1.25rem;
     padding-right: 2.5rem;
   }
+
+  .hole-setup-input {
+    @apply w-full rounded-lg border border-sand bg-cream px-2 py-1.5 text-center text-sm font-semibold text-fairway-800 outline-none transition focus:border-fairway-400 focus:ring-2 focus:ring-fairway-200;
+  }
 }
 
 @media print {

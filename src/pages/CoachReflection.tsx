@@ -10,17 +10,17 @@ const FIELDS: { key: keyof CoachReflection; label: string; placeholder: string }
   {
     key: 'strengths',
     label: 'Strengths Today',
-    placeholder: 'What did you do well? Good course management, solid drives...',
+    placeholder: '• Driver accuracy excellent\n• Strong lag putting',
   },
   {
     key: 'improvements',
-    label: 'Areas to Improve',
-    placeholder: 'Short game, lag putting, club selection on par 5s...',
+    label: 'Focus Areas',
+    placeholder: '• Wedge distance control\n• Par 5 scoring',
   },
   {
     key: 'practiceFocus',
-    label: 'Practice Focus',
-    placeholder: 'Drills and priorities for next practice session...',
+    label: 'Next Practice',
+    placeholder: '• 50–100 yard wedge ladder drill',
   },
   {
     key: 'goals',

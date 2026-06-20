@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useGolf } from '../context/GolfContext';
-import { ROUND_TYPES, type RoundType } from '../types';
+import { ROUND_TYPES, normalizeHole, type HoleEntry, type RoundType } from '../types';
 
 const WEATHER_OPTIONS = ['Clear', 'Cloudy', 'Windy', 'Rain', 'Cold', 'Hot'] as const;
 
@@ -39,6 +39,44 @@ export default function NewRound() {
       roundType,
       tournamentName: roundType === 'tournament' ? round.tournamentName : undefined,
     });
+  };
+
+  const updateHoleLayout = (index: number, updates: Pick<HoleEntry, 'par' | 'yards'>) => {
+    const current = round.holes[index];
+    const par = updates.par ?? current.par;
+    const yards = updates.yards ?? current.yards;
+
+    const newHoles = [...round.holes];
+    newHoles[index] = normalizeHole({
+      ...current,
+      par,
+      yards,
+      ...(updates.par !== undefined
+        ? {
+            score: Math.min(10, Math.max(1, par)),
+            ...(par === 3
+              ? { fairway: 'N/A' as const }
+              : current.fairway === 'N/A'
+                ? { fairway: '' as const }
+                : {}),
+          }
+        : {}),
+    });
+    updateActiveRound({ holes: newHoles });
+  };
+
+  const parseParInput = (value: string, fallback: number): number => {
+    if (value.trim() === '') return fallback;
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return fallback;
+    return Math.min(5, Math.max(3, Math.round(parsed)));
+  };
+
+  const parseYardsInput = (value: string): number => {
+    if (value.trim() === '') return 0;
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return 0;
+    return Math.min(700, Math.max(0, Math.round(parsed)));
   };
 
   return (
@@ -110,6 +148,53 @@ export default function NewRound() {
               />
             </Field>
           )}
+        </section>
+
+        <section className="rounded-2xl border border-sand bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm font-semibold text-fairway-800">Course Hole Setup</p>
+          <p className="mb-3 text-xs text-fairway-400">
+            Enter par and yardage for each hole before starting.
+          </p>
+
+          <div className="mb-2 grid grid-cols-[2.5rem_1fr_1fr] gap-2 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-fairway-400">
+            <span>Hole</span>
+            <span className="text-center">Par</span>
+            <span className="text-center">Yards</span>
+          </div>
+
+          <div className="space-y-1.5">
+            {round.holes.map((hole, index) => (
+              <div
+                key={hole.hole}
+                className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
+              >
+                <span className="text-sm font-bold text-fairway-800">Hole {hole.hole}</span>
+                <input
+                  type="number"
+                  min={3}
+                  max={5}
+                  value={hole.par}
+                  onChange={(e) =>
+                    updateHoleLayout(index, {
+                      par: parseParInput(e.target.value, hole.par),
+                      yards: hole.yards,
+                    })
+                  }
+                  className="hole-setup-input"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={700}
+                  value={hole.yards === 0 ? '' : hole.yards}
+                  onChange={(e) =>
+                    updateHoleLayout(index, { par: hole.par, yards: parseYardsInput(e.target.value) })
+                  }
+                  className="hole-setup-input"
+                />
+              </div>
+            ))}
+          </div>
         </section>
 
         <button

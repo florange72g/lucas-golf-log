@@ -246,22 +246,12 @@ export const DEFAULT_COACH: CoachReflection = {
   goals: '',
 };
 
-export const DEFAULT_PAR_LAYOUT = [
-  4, 4, 3, 5, 4, 4, 3, 4, 5,
-  4, 4, 3, 5, 4, 4, 3, 4, 5,
-];
-
-export const DEFAULT_YARDS_LAYOUT = [
-  380, 420, 165, 520, 395, 410, 180, 360, 545,
-  400, 385, 155, 510, 375, 430, 170, 350, 530,
-];
-
 export function createEmptyHole(index: number): HoleEntry {
-  const par = DEFAULT_PAR_LAYOUT[index] ?? 4;
+  const par: number = 4;
   return {
     hole: index + 1,
     par,
-    yards: DEFAULT_YARDS_LAYOUT[index] ?? 400,
+    yards: 0,
     driver: '',
     fairway: par === 3 ? 'N/A' : '',
     gir: '',
