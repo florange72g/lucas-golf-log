@@ -3,11 +3,12 @@ import { useGolf } from '../context/GolfContext';
 
 const STATIC_NAV = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
+  { to: '/rounds', label: 'History', icon: HistoryIcon, end: false },
   { to: '/statistics', label: 'Stats', icon: ChartIcon, end: false },
   { to: '/recruiting', label: 'Report', icon: DocIcon, end: false },
 ] as const;
 
-const ROUND_PATHS = ['/new-round', '/hole-entry', '/round-summary/active', '/mental', '/coach'];
+const ROUND_PATHS = ['/new-round', '/hole-entry', '/round-summary/active', '/mental', '/coach', '/edit-round'];
 
 export function getRoundNavPath(activeRound: ReturnType<typeof useGolf>['activeRound']): string {
   if (activeRound?.courseName.trim()) return '/hole-entry';
@@ -19,13 +20,15 @@ export default function BottomNav() {
   const location = useLocation();
   const roundTo = getRoundNavPath(activeRound);
   const isRoundActive = ROUND_PATHS.some(
-    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
+    (path) =>
+      location.pathname === path ||
+      location.pathname.startsWith(`${path}/`),
   );
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom" aria-label="Main navigation">
-      <div className="mx-auto max-w-lg px-4 pb-3">
-        <div className="flex items-center justify-around rounded-2xl bg-fairway-800 px-2 py-2 shadow-lg shadow-fairway-900/20">
+      <div className="mx-auto max-w-lg px-3 pb-3">
+        <div className="flex items-center justify-around rounded-2xl bg-fairway-800 px-1 py-2 shadow-lg shadow-fairway-900/20">
           <NavLink
             to="/"
             end
@@ -53,7 +56,7 @@ export default function BottomNav() {
 }
 
 function navClass(isActive: boolean): string {
-  return `flex flex-col items-center gap-0.5 rounded-xl px-4 py-2 text-xs font-medium transition-colors ${
+  return `flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-2 text-[10px] font-medium transition-colors ${
     isActive ? 'bg-fairway-700 text-gold-400' : 'text-fairway-200 hover:text-white'
   }`;
 }
@@ -70,6 +73,14 @@ function FlagIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }

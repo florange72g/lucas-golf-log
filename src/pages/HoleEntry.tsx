@@ -20,7 +20,8 @@ import {
 
 export default function HoleEntry() {
   const navigate = useNavigate();
-  const { activeRound, updateActiveRound, saveActiveRound } = useGolf();
+  const { activeRound, updateActiveRound, saveActiveRound, editingSavedRound, saveEditedRound } =
+    useGolf();
   const [currentHole, setCurrentHole] = useState(0);
   const [nine, setNine] = useState<'front' | 'back'>('front');
 
@@ -54,12 +55,18 @@ export default function HoleEntry() {
     updateActiveRound({ holes: newHoles });
   };
 
+  const roundId = activeRound.id;
+  const holeBackTo = editingSavedRound ? `/edit-round/${roundId}` : '/';
+
   const goNext = () => {
     if (currentHole < 8) {
       setCurrentHole(currentHole + 1);
     } else if (nine === 'front') {
       setNine('back');
       setCurrentHole(0);
+    } else if (editingSavedRound) {
+      saveEditedRound();
+      navigate(`/round-summary/${roundId}`);
     } else {
       saveActiveRound();
       navigate('/round-summary/active');
@@ -85,7 +92,21 @@ export default function HoleEntry() {
       <PageHeader
         title={`Hole ${hole.hole}`}
         subtitle={`${activeRound.courseName} · ${formatScoreToPar(roundToPar)}`}
-        backTo="/"
+        backTo={holeBackTo}
+        action={
+          editingSavedRound ? (
+            <button
+              type="button"
+              onClick={() => {
+                saveEditedRound();
+                navigate(`/round-summary/${roundId}`);
+              }}
+              className="rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-semibold text-fairway-900"
+            >
+              Save
+            </button>
+          ) : undefined
+        }
       />
 
       <div className="space-y-4 px-4 pt-1 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]">
@@ -217,7 +238,11 @@ export default function HoleEntry() {
             Previous
           </button>
           <button type="button" onClick={goNext} className="btn-primary flex-1">
-            {nine === 'back' && currentHole === 8 ? 'Finish Round' : 'Next Hole'}
+            {editingSavedRound && nine === 'back' && currentHole === 8
+              ? 'Save Round'
+              : nine === 'back' && currentHole === 8
+                ? 'Finish Round'
+                : 'Next Hole'}
           </button>
         </div>
       </div>

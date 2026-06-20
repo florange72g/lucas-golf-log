@@ -65,6 +65,7 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <QuickAction to="/new-round" label="New Round" desc="Log a round" />
+            <QuickAction to="/rounds" label="Round History" desc="View saved rounds" />
             <QuickAction to="/mental" label="Mental Game" desc="Rate mindset" />
             <QuickAction to="/coach" label="Coach Notes" desc="Reflection" />
             <QuickAction to="/statistics" label="Statistics" desc="View trends" />

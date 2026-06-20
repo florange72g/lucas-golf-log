@@ -23,6 +23,34 @@
   .hole-setup-input {
     @apply w-full rounded-lg border border-sand bg-cream px-2 py-1.5 text-center text-sm font-semibold text-fairway-800 outline-none transition focus:border-fairway-400 focus:ring-2 focus:ring-fairway-200;
   }
+
+  .score-marker {
+    @apply inline-flex items-center justify-center leading-none font-bold text-fairway-800;
+  }
+
+  .score-marker.circle {
+    @apply min-h-[1.375rem] min-w-[1.375rem] rounded-full border border-fairway-700 px-0.5 text-[11px];
+  }
+
+  .score-marker.double-circle {
+    @apply rounded-full border border-fairway-700 p-[2px] text-[10px];
+  }
+
+  .score-marker.double-circle > span {
+    @apply inline-flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full border border-fairway-700 px-0.5;
+  }
+
+  .score-marker.square {
+    @apply min-h-[1.375rem] min-w-[1.375rem] border border-fairway-700 px-0.5 text-[11px];
+  }
+
+  .score-marker.double-square {
+    @apply border border-fairway-700 p-[2px] text-[10px];
+  }
+
+  .score-marker.double-square > span {
+    @apply inline-flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center border border-fairway-700 px-0.5;
+  }
 }
 
 @media print {

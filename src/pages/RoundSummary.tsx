@@ -6,6 +6,7 @@ import TodaysRoundSummary from '../components/TodaysRoundSummary';
 import FairwayStats from '../components/FairwayStats';
 import GIRStats from '../components/GIRStats';
 import PuttsStats from '../components/PuttsStats';
+import ScoreMarker from '../components/ScoreMarker';
 import { useGolf } from '../context/GolfContext';
 import { isTournamentRound } from '../types';
 import { generateRoundPdf } from '../utils/generateGolfReportPdf';
@@ -249,14 +250,11 @@ function ScorecardRow({ holes, label }: { holes: { hole: number; par: number; sc
         </tr>
         <tr>
           <td className="px-2 py-2 text-left font-medium text-fairway-500">Score</td>
-          {holes.map((h) => {
-            const diff = h.score - h.par;
-            const color =
-              diff <= -1 ? 'text-fairway-600 font-bold' : diff >= 2 ? 'text-red-600 font-bold' : '';
-            return (
-              <td key={h.hole} className={`px-1 py-2 ${color}`}>{h.score}</td>
-            );
-          })}
+          {holes.map((h) => (
+            <td key={h.hole} className="px-1 py-2">
+              <ScoreMarker score={h.score} par={h.par} />
+            </td>
+          ))}
           <td className="px-2 py-2 font-bold text-fairway-800">{scoreTotal}</td>
         </tr>
       </tbody>

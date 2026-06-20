@@ -9,6 +9,8 @@ import MentalPerformance from './pages/MentalPerformance';
 import CoachReflection from './pages/CoachReflection';
 import Statistics from './pages/Statistics';
 import RecruitingReport from './pages/RecruitingReport';
+import RoundsHistory from './pages/RoundsHistory';
+import EditRound from './pages/EditRound';
 
 export default function App() {
   return (
@@ -23,6 +25,8 @@ export default function App() {
         <Route path="coach" element={<CoachReflection />} />
         <Route path="statistics" element={<Statistics />} />
         <Route path="recruiting" element={<RecruitingReport />} />
+        <Route path="rounds" element={<RoundsHistory />} />
+        <Route path="edit-round/:id" element={<EditRound />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
