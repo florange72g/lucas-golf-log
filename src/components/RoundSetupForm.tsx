@@ -84,6 +84,16 @@ export default function RoundSetupForm({
           />
         </Field>
 
+        <Field label="Location" className="mt-4">
+          <input
+            type="text"
+            value={round.location}
+            onChange={(e) => updateActiveRound({ location: e.target.value })}
+            placeholder="St. Jean, QC"
+            className="input-field"
+          />
+        </Field>
+
         <Field label="Date" className="mt-4">
           <input
             type="date"

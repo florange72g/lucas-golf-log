@@ -20,6 +20,7 @@ function normalizeSavedCourse(raw: Partial<SavedCourse>): SavedCourse {
   return {
     id: raw.id ?? crypto.randomUUID(),
     courseName: raw.courseName?.trim() ?? '',
+    location: raw.location ?? '',
     totalHoles: raw.totalHoles ?? raw.holes?.length ?? 18,
     holes: (raw.holes ?? []).map(normalizeSavedCourseHole),
     courseHandicap: raw.courseHandicap ?? '',
@@ -65,6 +66,7 @@ export function savedCourseFromRound(round: Round): SavedCourse | null {
     })),
     courseHandicap: round.courseHandicap,
     slopeRating: round.slopeRating,
+    location: round.location,
     createdAt: now,
     updatedAt: now,
   });
@@ -101,6 +103,7 @@ export function upsertSavedCourse(courses: SavedCourse[], round: Round): SavedCo
       holes: nextCourse.holes,
       courseHandicap: nextCourse.courseHandicap,
       slopeRating: nextCourse.slopeRating,
+      location: nextCourse.location,
       updatedAt: new Date().toISOString(),
     });
     const next = [...courses];
@@ -150,6 +153,7 @@ export function applySavedCourseToRound(round: Round, course: SavedCourse): Roun
   return {
     ...round,
     courseName: course.courseName,
+    location: course.location,
     courseHandicap: course.courseHandicap,
     slopeRating: course.slopeRating,
     holes: holes.slice(0, course.totalHoles),

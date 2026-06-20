@@ -139,17 +139,29 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   doc.setTextColor(255, 255, 255);
   doc.text(round.courseName || 'Golf Scorecard', margin, 15);
 
+  if (round.location.trim()) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
+    doc.text(round.location.trim(), margin, 20);
+  }
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.text(formatReportDate(round.date), margin, 23);
+  doc.text(formatReportDate(round.date), margin, round.location.trim() ? 26 : 23);
 
   doc.setFontSize(9);
   doc.setTextColor(220, 230, 220);
-  doc.text(`${profile.name} · Round Report`, margin, 30);
+  doc.text(`${profile.name} · Round Report`, margin, round.location.trim() ? 33 : 30);
 
-  y = 46;
+  y = round.location.trim() ? 49 : 46;
 
+  if (round.location.trim()) {
+    drawInline('Location', round.location.trim());
+  } else {
+    drawInline('Location', '—');
+  }
   drawInline('Course Handicap', round.courseHandicap.trim() || '—');
   drawInline('Slope Rating', round.slopeRating.trim() || '—');
 

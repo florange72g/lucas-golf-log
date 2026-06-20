@@ -188,6 +188,7 @@ export function normalizeRoundType(raw?: string, legacyTournament?: boolean): Ro
 export interface Round {
   id: string;
   courseName: string;
+  location: string;
   date: string;
   teeBox: string;
   weather: string;
@@ -211,6 +212,7 @@ export interface SavedCourseHole {
 export interface SavedCourse {
   id: string;
   courseName: string;
+  location: string;
   totalHoles: number;
   holes: SavedCourseHole[];
   courseHandicap: string;
@@ -290,6 +292,7 @@ export function createEmptyRound(): Round {
     teeBox: 'Championship',
     weather: 'Clear',
     roundType: 'practice',
+    location: '',
     courseHandicap: '',
     slopeRating: '',
     holes: Array.from({ length: 18 }, (_, i) => createEmptyHole(i)),
