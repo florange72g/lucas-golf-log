@@ -1,7 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import RoundLockControl from '../components/RoundLockControl';
 import { useGolf } from '../context/GolfContext';
-import { ROUND_TYPES } from '../types';
+import { ROUND_TYPES, type Round } from '../types';
+import {
+  isRoundLocked,
+  LOCKED_DELETE_MESSAGE,
+  LOCKED_EDIT_MESSAGE,
+} from '../utils/roundLock';
 import { calcTotalPar, calcTotalScore } from '../utils/stats';
 
 const DELETE_CONFIRM =
@@ -9,7 +15,7 @@ const DELETE_CONFIRM =
 
 export default function RoundsHistory() {
   const navigate = useNavigate();
-  const { rounds, deleteRound, loadRoundForEdit, resumeRound } = useGolf();
+  const { rounds, deleteRound, loadRoundForEdit, resumeRound, setRoundLocked } = useGolf();
 
   const sortedRounds = [...rounds].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
@@ -25,15 +31,23 @@ export default function RoundsHistory() {
     }
   };
 
-  const handleEdit = (id: string) => {
-    if (loadRoundForEdit(id)) {
-      navigate(`/edit-round/${id}`);
+  const handleEdit = (round: Round) => {
+    if (isRoundLocked(round)) {
+      window.alert(LOCKED_EDIT_MESSAGE);
+      return;
+    }
+    if (loadRoundForEdit(round.id)) {
+      navigate(`/edit-round/${round.id}`);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (round: Round) => {
+    if (isRoundLocked(round)) {
+      window.alert(LOCKED_DELETE_MESSAGE);
+      return;
+    }
     if (window.confirm(DELETE_CONFIRM)) {
-      deleteRound(id);
+      deleteRound(round.id);
     }
   };
 
@@ -59,6 +73,7 @@ export default function RoundsHistory() {
             const totalPar = calcTotalPar(round.holes);
             const roundTypeLabel =
               ROUND_TYPES.find((t) => t.value === round.roundType)?.label ?? round.roundType;
+            const locked = isRoundLocked(round);
 
             return (
               <article
@@ -79,7 +94,13 @@ export default function RoundsHistory() {
                       })}
                     </p>
                     <p className="mt-1 text-xs font-medium text-fairway-500">{roundTypeLabel}</p>
-                    {!round.completed && (
+                    {round.completed ? (
+                      <RoundLockControl
+                        round={round}
+                        onSetLocked={(locked) => setRoundLocked(round.id, locked)}
+                        className="mt-2"
+                      />
+                    ) : (
                       <span className="mt-2 inline-block rounded-full bg-gold-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fairway-800">
                         In Progress
                       </span>
@@ -101,15 +122,21 @@ export default function RoundsHistory() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleEdit(round.id)}
-                    className="rounded-xl border border-fairway-300 bg-white py-2.5 text-xs font-semibold text-fairway-700 transition active:bg-fairway-50"
+                    onClick={() => handleEdit(round)}
+                    aria-disabled={locked}
+                    className={`rounded-xl border border-fairway-300 bg-white py-2.5 text-xs font-semibold text-fairway-700 transition active:bg-fairway-50${
+                      locked ? ' cursor-not-allowed opacity-40' : ''
+                    }`}
                   >
                     Edit
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(round.id)}
-                    className="rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-semibold text-red-700 transition active:bg-red-100"
+                    onClick={() => handleDelete(round)}
+                    aria-disabled={locked}
+                    className={`rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-semibold text-red-700 transition active:bg-red-100${
+                      locked ? ' cursor-not-allowed opacity-40' : ''
+                    }`}
                   >
                     Delete
                   </button>

@@ -61,7 +61,7 @@ export function savedCourseFromRound(round: Round): SavedCourse | null {
     totalHoles: round.holes.length,
     holes: round.holes.map((hole) => ({
       holeNumber: hole.hole,
-      par: hole.par,
+      par: typeof hole.par === 'number' ? hole.par : 4,
       yardage: hole.yards,
     })),
     courseHandicap: round.courseHandicap,

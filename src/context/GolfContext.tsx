@@ -3,6 +3,7 @@ import type { PlayerProfile, Round, SavedCourse } from '../types';
 import { createEmptyRound } from '../types';
 import { applySavedCourseToRound, loadSavedCourses, saveSavedCourses, seedSavedCoursesFromRounds, upsertSavedCourse } from '../utils/savedCourses';
 import { loadProfile, loadRounds, normalizeRoundHoles, saveProfile, saveRounds } from '../utils/storage';
+import { isRoundLocked } from '../utils/roundLock';
 
 function findInProgressRound(rounds: Round[]): Round | null {
   return rounds.find((r) => !r.completed) ?? null;
@@ -26,6 +27,7 @@ interface GolfContextValue {
   clearEditingRound: () => void;
   completeRound: () => void;
   deleteRound: (id: string) => void;
+  setRoundLocked: (id: string, locked: boolean) => void;
 }
 
 const GolfContext = createContext<GolfContextValue | null>(null);
@@ -92,6 +94,10 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const updateActiveRound = (updates: Partial<Round>) => {
     setActiveRoundState((prev) => {
       if (!prev) return prev;
+      if (editingSavedRound) {
+        const existing = rounds.find((r) => r.id === prev.id);
+        if (existing && isRoundLocked(existing)) return prev;
+      }
       const next = { ...prev, ...updates };
       return updates.holes ? normalizeRoundHoles(next) : next;
     });
@@ -123,9 +129,11 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const saveEditedRound = () => {
     if (!activeRound) return;
     const existing = rounds.find((r) => r.id === activeRound.id);
+    if (existing && isRoundLocked(existing)) return;
     const normalized = normalizeRoundHoles({
       ...activeRound,
       completed: existing?.completed ?? true,
+      isLocked: existing?.isLocked,
     });
     setRounds((prev) => {
       const idx = prev.findIndex((r) => r.id === normalized.id);
@@ -143,7 +151,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
 
   const loadRoundForEdit = (id: string): boolean => {
     const round = rounds.find((r) => r.id === id);
-    if (!round) return false;
+    if (!round || isRoundLocked(round)) return false;
     setActiveRoundState(normalizeRoundHoles({ ...round }));
     setEditingSavedRound(true);
     return true;
@@ -163,7 +171,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
 
   const completeRound = () => {
     if (!activeRound) return;
-    const completed = normalizeRoundHoles({ ...activeRound, completed: true });
+    const completed = normalizeRoundHoles({ ...activeRound, completed: true, isLocked: true });
     setRounds((prev) => {
       const idx = prev.findIndex((r) => r.id === completed.id);
       if (idx >= 0) {
@@ -178,10 +186,21 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteRound = (id: string) => {
+    const round = rounds.find((r) => r.id === id);
+    if (round && isRoundLocked(round)) return;
     setRounds((prev) => prev.filter((r) => r.id !== id));
     if (activeRound?.id === id) {
       setActiveRoundState(null);
       setEditingSavedRound(false);
+    }
+  };
+
+  const setRoundLocked = (id: string, locked: boolean) => {
+    setRounds((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, isLocked: locked } : r)),
+    );
+    if (activeRound?.id === id) {
+      setActiveRoundState((prev) => (prev ? { ...prev, isLocked: locked } : prev));
     }
   };
 
@@ -205,6 +224,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         clearEditingRound,
         completeRound,
         deleteRound,
+        setRoundLocked,
       }}
     >
       {children}

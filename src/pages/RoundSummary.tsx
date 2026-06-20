@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import RoundLockControl from '../components/RoundLockControl';
 import StatCard from '../components/StatCard';
 import TodaysRoundSummary from '../components/TodaysRoundSummary';
 import FairwayStats from '../components/FairwayStats';
@@ -8,7 +9,9 @@ import GIRStats from '../components/GIRStats';
 import PuttsStats from '../components/PuttsStats';
 import ScoreMarker from '../components/ScoreMarker';
 import { useGolf } from '../context/GolfContext';
+import type { HoleEntry } from '../types';
 import { isTournamentRound } from '../types';
+import { parAsNumber } from '../utils/parInput';
 import { generateRoundPdf } from '../utils/generateGolfReportPdf';
 import {
   avgMentalScore,
@@ -28,7 +31,7 @@ import {
 export default function RoundSummary() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeRound, rounds, profile, completeRound, saveActiveRound } = useGolf();
+  const { activeRound, rounds, profile, completeRound, saveActiveRound, setRoundLocked } = useGolf();
   const [exporting, setExporting] = useState(false);
 
   const round =
@@ -108,6 +111,14 @@ export default function RoundSummary() {
               day: 'numeric',
             })}
           </p>
+          {!isActive && round.completed && (
+            <RoundLockControl
+              round={round}
+              onSetLocked={(locked) => setRoundLocked(round.id, locked)}
+              className="mt-2 justify-center"
+              variant="onDark"
+            />
+          )}
           {isTournamentRound(round) && (
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gold-400">
               {round.tournamentName || 'Tournament'}
@@ -240,8 +251,8 @@ export default function RoundSummary() {
   );
 }
 
-function ScorecardRow({ holes, label }: { holes: { hole: number; par: number; score: number }[]; label: string }) {
-  const parTotal = holes.reduce((s, h) => s + h.par, 0);
+function ScorecardRow({ holes, label }: { holes: HoleEntry[]; label: string }) {
+  const parTotal = holes.reduce((s, h) => s + parAsNumber(h.par), 0);
   const scoreTotal = holes.reduce((s, h) => s + h.score, 0);
 
   return (
@@ -259,7 +270,7 @@ function ScorecardRow({ holes, label }: { holes: { hole: number; par: number; sc
         <tr className="border-b border-sand">
           <td className="px-2 py-2 text-left font-medium text-fairway-500">Par</td>
           {holes.map((h) => (
-            <td key={h.hole} className="px-1 py-2 text-fairway-400">{h.par}</td>
+            <td key={h.hole} className="px-1 py-2 text-fairway-400">{parAsNumber(h.par)}</td>
           ))}
           <td className="px-2 py-2 font-semibold">{parTotal}</td>
         </tr>
@@ -267,7 +278,7 @@ function ScorecardRow({ holes, label }: { holes: { hole: number; par: number; sc
           <td className="px-2 py-2 text-left font-medium text-fairway-500">Score</td>
           {holes.map((h) => (
             <td key={h.hole} className="px-1 py-2">
-              <ScoreMarker score={h.score} par={h.par} />
+              <ScoreMarker score={h.score} par={parAsNumber(h.par)} />
             </td>
           ))}
           <td className="px-2 py-2 font-bold text-fairway-800">{scoreTotal}</td>

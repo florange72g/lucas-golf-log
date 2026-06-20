@@ -9,6 +9,7 @@ import ScoreSelector from '../components/ScoreSelector';
 import { useGolf } from '../context/GolfContext';
 import type { HoleEntry } from '../types';
 import { DRIVER_CLUBS, IRON_WOOD_CLUBS, isHoleLogged, normalizeHole } from '../types';
+import { isValidPar, parAsNumber } from '../utils/parInput';
 import {
   backNine,
   calcTotalScore,
@@ -148,18 +149,31 @@ export default function HoleEntry() {
         {/* Hole info row */}
         <div className="grid grid-cols-3 gap-2 rounded-2xl border border-sand bg-white p-3">
           <InfoCell label="Hole" value={hole.hole} />
-          <InfoCell
-            label="Par"
-            value={hole.par}
-            editable
-            onChange={(v) =>
-              updateHole({
-                par: v,
-                score: Math.min(10, Math.max(1, v)),
-                ...(v === 3 ? { fairway: 'N/A' as const } : hole.fairway === 'N/A' ? { fairway: '' } : {}),
-              })
-            }
-          />
+          <div className="text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-fairway-400">Par</p>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={hole.par ?? ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                const par = value === '' ? '' : Number(value);
+                const scoreUpdates =
+                  typeof par === 'number' && isValidPar(par)
+                    ? {
+                        score: Math.min(10, Math.max(1, par)),
+                        ...(par === 3
+                          ? { fairway: 'N/A' as const }
+                          : hole.fairway === 'N/A'
+                            ? { fairway: '' as const }
+                            : {}),
+                      }
+                    : {};
+                updateHole({ par, ...scoreUpdates });
+              }}
+              className="mt-0.5 w-full bg-transparent text-center text-2xl font-bold text-fairway-800 outline-none"
+            />
+          </div>
           <InfoCell
             label="Yards"
             value={hole.yards}
@@ -207,7 +221,7 @@ export default function HoleEntry() {
 
           <ScoreSelector
             value={hole.score}
-            par={hole.par}
+            par={parAsNumber(hole.par)}
             onChange={(score) => updateHole({ score })}
           />
 
@@ -305,9 +319,16 @@ function InfoCell({
       <div className="text-center">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-fairway-400">{label}</p>
         <input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          type="text"
+          inputMode="numeric"
+          value={value === 0 ? '' : value}
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw === '') return;
+            const parsed = Number(raw);
+            if (Number.isNaN(parsed)) return;
+            onChange(parsed);
+          }}
           className="mt-0.5 w-full bg-transparent text-center text-2xl font-bold text-fairway-800 outline-none"
         />
       </div>

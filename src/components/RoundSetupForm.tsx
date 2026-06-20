@@ -1,6 +1,12 @@
+import { useEffect, useState } from 'react';
 import { useGolf } from '../context/GolfContext';
 import CourseNameAutocomplete from './CourseNameAutocomplete';
 import { ROUND_TYPES, normalizeHole, type HoleEntry, type RoundType } from '../types';
+import {
+  isValidPar,
+  PAR_ERROR_MESSAGE,
+  parAsNumber,
+} from '../utils/parInput';
 
 const WEATHER_OPTIONS = ['Clear', 'Cloudy', 'Windy', 'Rain', 'Cold', 'Hot'] as const;
 
@@ -23,6 +29,12 @@ export default function RoundSetupForm({
   if (!activeRound) return null;
 
   const round = activeRound;
+  const [parErrors, setParErrors] = useState<Record<number, string>>({});
+
+  const holesSignature = round.holes.map((h) => `${h.hole}:${h.par}:${h.yards}`).join('|');
+  useEffect(() => {
+    setParErrors({});
+  }, [holesSignature]);
 
   const setRoundType = (roundType: RoundType) => {
     updateActiveRound({
@@ -36,12 +48,8 @@ export default function RoundSetupForm({
     const par = updates.par ?? current.par;
     const yards = updates.yards ?? current.yards;
 
-    const newHoles = [...round.holes];
-    newHoles[index] = normalizeHole({
-      ...current,
-      par,
-      yards,
-      ...(updates.par !== undefined
+    const parUpdates =
+      updates.par !== undefined && typeof par === 'number' && isValidPar(par)
         ? {
             score: Math.min(10, Math.max(1, par)),
             ...(par === 3
@@ -50,16 +58,60 @@ export default function RoundSetupForm({
                 ? { fairway: '' as const }
                 : {}),
           }
-        : {}),
+        : {};
+
+    const newHoles = [...round.holes];
+    newHoles[index] = normalizeHole({
+      ...current,
+      par,
+      yards,
+      ...parUpdates,
     });
     updateActiveRound({ holes: newHoles });
   };
 
-  const parseParInput = (value: string, fallback: number): number => {
-    if (value.trim() === '') return fallback;
-    const parsed = Number(value);
-    if (Number.isNaN(parsed)) return fallback;
-    return Math.min(5, Math.max(3, Math.round(parsed)));
+  const clearParError = (holeNumber: number) => {
+    if (!parErrors[holeNumber]) return;
+    setParErrors((prev) => {
+      const next = { ...prev };
+      delete next[holeNumber];
+      return next;
+    });
+  };
+
+  const handleParBlur = (holeNumber: number, par: HoleEntry['par']) => {
+    if (par === '') return;
+    if (typeof par === 'number' && !isValidPar(par)) {
+      setParErrors((prev) => ({ ...prev, [holeNumber]: PAR_ERROR_MESSAGE }));
+    }
+  };
+
+  const validateAllPars = (): boolean => {
+    const errors: Record<number, string> = {};
+
+    round.holes.forEach((hole) => {
+      if (typeof hole.par !== 'number' || !isValidPar(hole.par)) {
+        errors[hole.hole] = PAR_ERROR_MESSAGE;
+      }
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setParErrors(errors);
+      return false;
+    }
+
+    setParErrors({});
+    return true;
+  };
+
+  const handlePrimary = () => {
+    if (!validateAllPars()) return;
+    onPrimary();
+  };
+
+  const handleSecondary = () => {
+    if (!validateAllPars()) return;
+    onSecondary?.();
   };
 
   const parseYardsInput = (value: string): number => {
@@ -69,7 +121,7 @@ export default function RoundSetupForm({
     return Math.min(700, Math.max(0, Math.round(parsed)));
   };
 
-  const totalPar = round.holes.reduce((sum, hole) => sum + hole.par, 0);
+  const totalPar = round.holes.reduce((sum, hole) => sum + parAsNumber(hole.par), 0);
   const totalYards = round.holes.reduce((sum, hole) => sum + hole.yards, 0);
 
   return (
@@ -191,19 +243,27 @@ export default function RoundSetupForm({
               className="grid grid-cols-[3.25rem_1fr_1fr] items-center gap-2"
             >
               <span className="text-sm font-bold text-fairway-800">Hole {hole.hole}</span>
-              <input
-                type="number"
-                min={3}
-                max={5}
-                value={hole.par}
-                onChange={(e) =>
-                  updateHoleLayout(index, {
-                    par: parseParInput(e.target.value, hole.par),
-                    yards: hole.yards,
-                  })
-                }
-                className="hole-setup-input"
-              />
+              <div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={hole.par ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const par = value === '' ? '' : Number(value);
+                    clearParError(hole.hole);
+                    updateHoleLayout(index, { par, yards: hole.yards });
+                  }}
+                  onBlur={() => handleParBlur(hole.hole, hole.par)}
+                  aria-invalid={parErrors[hole.hole] ? true : undefined}
+                  className={`hole-setup-input${parErrors[hole.hole] ? ' border-red-500' : ''}`}
+                />
+                {parErrors[hole.hole] && (
+                  <p className="mt-0.5 text-[10px] leading-tight text-red-600">
+                    {parErrors[hole.hole]}
+                  </p>
+                )}
+              </div>
               <input
                 type="number"
                 min={0}
@@ -232,14 +292,14 @@ export default function RoundSetupForm({
       <div className="space-y-3">
         <button
           type="button"
-          onClick={onPrimary}
+          onClick={handlePrimary}
           disabled={primaryDisabled}
           className="btn-primary w-full disabled:opacity-40"
         >
           {primaryLabel}
         </button>
         {secondaryLabel && onSecondary && (
-          <button type="button" onClick={onSecondary} className="btn-secondary w-full">
+          <button type="button" onClick={handleSecondary} className="btn-secondary w-full">
             {secondaryLabel}
           </button>
         )}

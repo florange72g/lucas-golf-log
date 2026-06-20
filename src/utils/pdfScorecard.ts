@@ -8,6 +8,7 @@ import {
   backNine,
 } from './stats';
 import { getScoreMarkerType } from './scoreMarker';
+import { parAsNumber } from './parInput';
 
 export { getScoreMarkerType };
 export type { ScoreMarkerType } from './scoreMarker';
@@ -178,9 +179,9 @@ function drawNineScorecard(
       } else if (row.key === 'yards') {
         centerText(doc, hole.yards > 0 ? String(hole.yards) : '—', cx, cy, false, 7);
       } else if (row.key === 'par') {
-        centerText(doc, String(hole.par), cx, cy, false, 8);
+        centerText(doc, String(parAsNumber(hole.par)), cx, cy, false, 8);
       } else if (isScoreRow) {
-        drawMarkedScore(doc, hole.score, hole.par, cx, cy);
+        drawMarkedScore(doc, hole.score, parAsNumber(hole.par), cx, cy);
       }
     });
 

@@ -8,9 +8,11 @@ export const IRON_WOOD_CLUBS = [
 /** @deprecated Use IRON_WOOD_CLUBS */
 export const APPROACH_CLUBS = IRON_WOOD_CLUBS;
 
+import type { ParValue } from '../utils/parInput';
+
 export interface Hole {
   hole: number;
-  par: number;
+  par: ParValue;
   yards: number;
   driver: string;
   fairway: 'Hit' | 'Left' | 'Right' | 'N/A';
@@ -54,8 +56,9 @@ export function normalizeGIR(value?: string): HoleEntry['gir'] {
   return '';
 }
 
-export function normalizeScore(value: number, par: number): number {
-  if (Number.isNaN(value)) return Math.min(10, Math.max(1, par));
+export function normalizeScore(value: number, par: ParValue): number {
+  const parNum = typeof par === 'number' ? par : 4;
+  if (Number.isNaN(value)) return Math.min(10, Math.max(1, parNum));
   return Math.min(10, Math.max(1, Math.round(value)));
 }
 
@@ -200,6 +203,8 @@ export interface Round {
   mental: MentalPerformance;
   coach: CoachReflection;
   completed: boolean;
+  /** When true (or undefined on completed rounds), edit/delete are blocked. */
+  isLocked?: boolean;
   createdAt: string;
 }
 

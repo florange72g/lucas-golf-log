@@ -1,12 +1,13 @@
 import type { HoleEntry, Round } from '../types';
 import { isHoleLogged, isTournamentRound, normalizeMental } from '../types';
+import { parAsNumber } from './parInput';
 
 export function calcTotalScore(holes: HoleEntry[]): number {
   return holes.reduce((sum, h) => sum + h.score, 0);
 }
 
 export function calcTotalPar(holes: HoleEntry[]): number {
-  return holes.reduce((sum, h) => sum + h.par, 0);
+  return holes.reduce((sum, h) => sum + parAsNumber(h.par), 0);
 }
 
 export function scoreToPar(holes: HoleEntry[]): number {
@@ -24,7 +25,7 @@ export function countFairways(holes: HoleEntry[]): {
   right: number;
   total: number;
 } {
-  const fairwayHoles = holes.filter((h) => h.par >= 4);
+  const fairwayHoles = holes.filter((h) => typeof h.par === 'number' && h.par >= 4);
   const applicable = fairwayHoles.filter((h) => h.fairway !== 'N/A' && h.fairway !== '');
   const hit = applicable.filter((h) => h.fairway === 'Hit').length;
   const left = applicable.filter((h) => h.fairway === 'Left').length;
@@ -104,7 +105,7 @@ export function parScoringAverages(holes: HoleEntry[]): { par3: number; par4: nu
 
   holes.forEach((h) => {
     if (!isHoleLogged(h)) return;
-    if (h.par === 3 || h.par === 4 || h.par === 5) {
+    if (typeof h.par === 'number' && (h.par === 3 || h.par === 4 || h.par === 5)) {
       totals[h.par].score += h.score;
       totals[h.par].count += 1;
     }
@@ -225,6 +226,7 @@ export function roundStats(rounds: Round[]) {
     puttsThree += putts.three;
 
     r.holes.forEach((h) => {
+      if (typeof h.par !== 'number') return;
       if (isHoleLogged(h) && (h.par === 3 || h.par === 4 || h.par === 5)) {
         parTotals[h.par].score += h.score;
         parTotals[h.par].count += 1;
@@ -313,6 +315,7 @@ export function scoreDistribution(holes: HoleEntry[]) {
   let others = 0;
 
   holes.forEach((h) => {
+    if (typeof h.par !== 'number') return;
     const diff = h.score - h.par;
     if (diff <= -1) birdies++;
     else if (diff === 0) pars++;
