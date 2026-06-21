@@ -1,4 +1,5 @@
 import type { Round } from '../types';
+import { openBlobInNewTab } from './openInNewTab';
 import { parAsNumber } from './parInput';
 import { getScoreMarkerType } from './scoreMarker';
 import {
@@ -166,13 +167,8 @@ function drawHoleRows(
 }
 
 function openScoreCardImage(canvas: HTMLCanvasElement): void {
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const tab = window.open('', '_blank', 'noopener,noreferrer');
-
-    if (tab) {
-      tab.document.write(`<!doctype html>
+  const dataUrl = canvas.toDataURL('image/png');
+  const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -184,22 +180,10 @@ function openScoreCardImage(canvas: HTMLCanvasElement): void {
 </style>
 </head>
 <body>
-  <img src="${url}" alt="Score Card" />
+  <img src="${dataUrl}" alt="Score Card" />
 </body>
-</html>`);
-      tab.document.close();
-    } else {
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }, 'image/png');
+</html>`;
+  openBlobInNewTab(new Blob([html], { type: 'text/html' }));
 }
 
 export async function generateScoreCard(round: Round): Promise<void> {

@@ -1,5 +1,6 @@
 import type { PlayerProfile, Round } from '../types';
 import { normalizeMental } from '../types';
+import { openBlobInNewTab } from './openInNewTab';
 import { drawFullScorecard } from './pdfScorecard';
 import { drawHoleByHoleChart } from './pdfHoleChart';
 import {
@@ -105,25 +106,6 @@ function buildPlayerNotes(round: Round): string {
 
 export function buildGolfReportFilename(profile: PlayerProfile, round: Round): string {
   return roundPdfFilename(profile.name, round.date);
-}
-
-function openPdfInNewTab(doc: import('jspdf').jsPDF): void {
-  const pdfUrl = URL.createObjectURL(doc.output('blob'));
-  const tab = window.open('', '_blank', 'noopener,noreferrer');
-
-  if (tab) {
-    tab.location.href = pdfUrl;
-  } else {
-    const link = document.createElement('a');
-    link.href = pdfUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  }
-
-  window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000);
 }
 
 export async function generateRoundPdf(profile: PlayerProfile, round: Round): Promise<void> {
@@ -271,7 +253,7 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
 
   drawReportHeadersAndPhoto(doc, headerCtx, photoDataUrl);
 
-  openPdfInNewTab(doc);
+  openBlobInNewTab(doc.output('blob'));
 }
 
 export async function generateGolfReportPdf(profile: PlayerProfile, round: Round): Promise<void> {
