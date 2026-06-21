@@ -12,6 +12,7 @@ import { useGolf } from '../context/GolfContext';
 import type { HoleEntry } from '../types';
 import { isTournamentRound } from '../types';
 import { parAsNumber } from '../utils/parInput';
+import { generateRoundPdf } from '../utils/generateGolfReportPdf';
 import { generateScoreCard } from '../utils/generateScoreCard';
 import {
   avgMentalScore,
@@ -31,8 +32,9 @@ import {
 export default function RoundSummary() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeRound, rounds, completeRound, saveActiveRound, setRoundLocked } = useGolf();
+  const { activeRound, rounds, profile, completeRound, saveActiveRound, setRoundLocked } = useGolf();
   const [exporting, setExporting] = useState(false);
+  const [exportingScoreCard, setExportingScoreCard] = useState(false);
 
   const round =
     id === 'active'
@@ -63,8 +65,18 @@ export default function RoundSummary() {
     navigate('/');
   };
 
-  const handleExportScoreCard = async () => {
+  const handleExportPdf = async () => {
     setExporting(true);
+    try {
+      if (isActive) saveActiveRound();
+      await generateRoundPdf(profile, round);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportScoreCard = async () => {
+    setExportingScoreCard(true);
     try {
       if (isActive) saveActiveRound();
       await generateScoreCard(round);
@@ -72,9 +84,11 @@ export default function RoundSummary() {
       console.error(error);
       window.alert('Could not generate score card. Please refresh the app and try again.');
     } finally {
-      setExporting(false);
+      setExportingScoreCard(false);
     }
   };
+
+  const exportBusy = exporting || exportingScoreCard;
 
   return (
     <>
@@ -86,10 +100,10 @@ export default function RoundSummary() {
           <button
             type="button"
             onClick={handleExportScoreCard}
-            disabled={exporting}
+            disabled={exportBusy}
             className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
           >
-            {exporting ? '…' : 'Export Score Card'}
+            {exportingScoreCard ? '…' : 'Score Card'}
           </button>
         }
       />
@@ -97,14 +111,14 @@ export default function RoundSummary() {
       <div className="space-y-5 px-4 pt-2">
         <button
           type="button"
-          onClick={handleExportScoreCard}
-          disabled={exporting}
+          onClick={handleExportPdf}
+          disabled={exportBusy}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 py-4 font-bold text-white shadow-md transition active:bg-amber-500 disabled:opacity-60"
         >
           <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M6 18h12a2 2 0 002-2V8a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
-          {exporting ? 'Generating Score Card…' : 'Export Score Card'}
+          {exporting ? 'Generating PDF…' : 'Export PDF'}
         </button>
         <div className="rounded-2xl bg-gradient-to-br from-fairway-700 to-fairway-900 p-6 text-center text-white shadow-lg">
           <p className="text-sm font-medium text-fairway-200">
