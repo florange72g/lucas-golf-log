@@ -29,6 +29,7 @@
     height: 180px;
     border-radius: 50%;
     object-fit: cover;
+    object-position: 38% center;
     position: absolute;
     top: 24px;
     right: 52px;
