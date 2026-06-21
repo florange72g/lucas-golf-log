@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AppVersion from '../components/AppVersion';
+import CloudSyncStatus from '../components/CloudSyncStatus';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import { useGolf } from '../context/GolfContext';
@@ -19,6 +20,8 @@ export default function Dashboard() {
       />
 
       <div className="-mt-3 space-y-5 px-4">
+        <CloudSyncStatus />
+
         {activeRound && (
           <Link
             to="/hole-entry"

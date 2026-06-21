@@ -27,7 +27,7 @@ import {
   upsertSavedCourse,
 } from '../utils/savedCourses';
 import { isRoundLocked } from '../utils/roundLock';
-import { syncError } from '../utils/syncLog';
+import { syncError as logSyncError } from '../utils/syncLog';
 import {
   loadProfileCache,
   loadRoundsCache,
@@ -84,6 +84,10 @@ interface GolfContextValue {
   activeRound: Round | null;
   editingSavedRound: boolean;
   syncReady: boolean;
+  syncSource: 'supabase' | 'localStorage';
+  lastSyncedAt: string | null;
+  syncError: string | null;
+  refreshNow: () => Promise<void>;
   setProfile: (profile: PlayerProfile) => void;
   startNewRound: () => Round;
   setActiveRound: (round: Round | null) => void;
@@ -113,6 +117,9 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   );
   const [editingSavedRound, setEditingSavedRound] = useState(false);
   const [syncReady, setSyncReady] = useState(false);
+  const [syncSource, setSyncSource] = useState<'supabase' | 'localStorage'>('localStorage');
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const inProgressSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRoundRef = useRef<Round | null>(null);
 
@@ -121,15 +128,36 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     pendingRoundRef.current = null;
     void persistRound(normalized)
       .then(setRounds)
-      .catch((error) => syncError('Failed to sync round to cloud', error));
+      .catch((error) => logSyncError('Failed to sync round to cloud', error));
   }, []);
 
   const pullFromCloud = useCallback(() => {
     void refreshFromCloud()
       .then((result) => {
         applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
+        setSyncSource(result.source);
+        setLastSyncedAt(new Date().toISOString());
+        setSyncError(null);
       })
-      .catch((error) => syncError('Refresh from cloud failed', error));
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Refresh failed';
+        setSyncError(message);
+        logSyncError('Refresh from cloud failed', error);
+      });
+  }, []);
+
+  const refreshNow = useCallback(async () => {
+    try {
+      const result = await refreshFromCloud();
+      applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
+      setSyncSource(result.source);
+      setLastSyncedAt(new Date().toISOString());
+      setSyncError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Sync failed';
+      setSyncError(message);
+      logSyncError('Manual sync failed', error);
+    }
   }, []);
 
   useEffect(() => {
@@ -139,17 +167,23 @@ export function GolfProvider({ children }: { children: ReactNode }) {
       .then((result) => {
         if (cancelled) return;
         applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
+        setSyncSource(result.source);
+        setLastSyncedAt(new Date().toISOString());
+        setSyncError(null);
         setSyncReady(true);
       })
       .catch((error) => {
         if (cancelled) return;
-        syncError('Bootstrap failed — using localStorage cache', error);
+        const message = error instanceof Error ? error.message : 'Bootstrap failed';
+        setSyncError(message);
+        logSyncError('Bootstrap failed — using localStorage cache', error);
         const cachedRounds = loadRoundsCache();
         setRounds(cachedRounds);
         setSavedCourses(
           seedSavedCoursesFromRounds(cachedRounds, loadSavedCoursesCache()),
         );
         setProfileState(loadProfileCache());
+        setSyncSource('localStorage');
         setSyncReady(true);
       });
 
@@ -212,7 +246,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
       if (course) {
         void persistSavedCourse(course)
           .then(setSavedCourses)
-          .catch((error) => syncError('Failed to sync saved course to cloud', error));
+          .catch((error) => logSyncError('Failed to sync saved course to cloud', error));
       }
       return nextCourses;
     });
@@ -241,7 +275,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     saveProfileCache(p);
     void persistProfile(p)
       .then(setProfileState)
-      .catch((error) => syncError('Failed to sync profile to cloud', error));
+      .catch((error) => logSyncError('Failed to sync profile to cloud', error));
   };
 
   const startNewRound = () => {
@@ -346,13 +380,13 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     }
     void removeRound(id)
       .then(setRounds)
-      .catch((error) => syncError('Failed to delete round from cloud', error));
+      .catch((error) => logSyncError('Failed to delete round from cloud', error));
   };
 
   const deleteSavedCourse = (id: string) => {
     void removeSavedCourse(id)
       .then(setSavedCourses)
-      .catch((error) => syncError('Failed to delete saved course from cloud', error));
+      .catch((error) => logSyncError('Failed to delete saved course from cloud', error));
   };
 
   const setRoundLocked = (id: string, locked: boolean) => {
@@ -376,6 +410,10 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         activeRound,
         editingSavedRound,
         syncReady,
+        syncSource,
+        lastSyncedAt,
+        syncError,
+        refreshNow,
         setProfile,
         startNewRound,
         setActiveRound,

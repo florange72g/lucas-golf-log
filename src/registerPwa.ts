@@ -1,12 +1,17 @@
 import { registerSW } from 'virtual:pwa-register';
+import { syncLog } from './utils/syncLog';
 
-const UPDATE_INTERVAL_MS = 60 * 60 * 1000;
+const UPDATE_INTERVAL_MS = 60 * 1000;
 
 export function registerPwaUpdates(): void {
   if (!import.meta.env.PROD) return;
 
-  registerSW({
+  const updateSW = registerSW({
     immediate: true,
+    onNeedRefresh() {
+      syncLog('New app version available — reloading');
+      void updateSW(true);
+    },
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
 
@@ -14,10 +19,10 @@ export function registerPwaUpdates(): void {
         registration.update().catch(() => {});
       };
 
+      checkForUpdate();
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') checkForUpdate();
       });
-
       window.addEventListener('focus', checkForUpdate);
       window.setInterval(checkForUpdate, UPDATE_INTERVAL_MS);
     },
