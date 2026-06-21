@@ -98,6 +98,43 @@ export async function upsertRoundToCloud(round: Round): Promise<void> {
   syncLog('UPSERT round OK', { id: round.id, rowsReturned: data?.length ?? 0 });
 }
 
+export async function upsertSavedCourseToCloud(course: SavedCourse): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const row = {
+    id: course.id,
+    data: course,
+    updated_at: courseUpdatedAt(course),
+  };
+
+  syncLog('UPSERT saved_course to Supabase', { id: course.id, name: course.courseName });
+  const { data, error } = await supabase
+    .from('saved_courses')
+    .upsert(row, { onConflict: 'id' })
+    .select('id');
+
+  if (error) {
+    syncError('UPSERT saved_course FAILED', { id: course.id, error });
+    throw error;
+  }
+
+  syncLog('UPSERT saved_course OK', { id: course.id, rowsReturned: data?.length ?? 0 });
+}
+
+export async function deleteSavedCourseFromCloud(id: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  syncLog('DELETE saved_course from Supabase', { id });
+  const { error } = await supabase.from('saved_courses').delete().eq('id', id);
+  if (error) {
+    syncError('DELETE saved_course FAILED', { id, error });
+    throw error;
+  }
+  syncLog('DELETE saved_course OK', { id });
+}
+
 export async function upsertRoundsToCloud(rounds: Round[]): Promise<void> {
   const supabase = getSupabase();
   if (!supabase || rounds.length === 0) return;
@@ -321,6 +358,26 @@ export async function persistAllRounds(rounds: Round[]): Promise<Round[]> {
   return fresh;
 }
 
+/** Save one saved course to Supabase, refetch all, update cache. */
+export async function persistSavedCourse(course: SavedCourse): Promise<SavedCourse[]> {
+  if (!isSupabaseConfigured()) {
+    const cached = loadSavedCoursesCache();
+    const idx = cached.findIndex((item) => item.id === course.id);
+    const next =
+      idx >= 0
+        ? cached.map((item, index) => (index === idx ? course : item))
+        : [...cached, course].sort((a, b) => a.courseName.localeCompare(b.courseName));
+    cacheSavedCourses(next, 'persistSavedCourse offline');
+    syncLog('Saved course to localStorage only (no Supabase)', { id: course.id });
+    return next;
+  }
+
+  await upsertSavedCourseToCloud(course);
+  const fresh = await fetchSavedCoursesFromCloud();
+  cacheSavedCourses(fresh, 'after persistSavedCourse');
+  return fresh;
+}
+
 /** Save saved courses to Supabase, refetch, update cache. */
 export async function persistSavedCourses(courses: SavedCourse[]): Promise<SavedCourse[]> {
   if (!isSupabaseConfigured()) {
@@ -332,6 +389,20 @@ export async function persistSavedCourses(courses: SavedCourse[]): Promise<Saved
   await upsertSavedCoursesToCloud(courses);
   const fresh = await fetchSavedCoursesFromCloud();
   cacheSavedCourses(fresh, 'after persistSavedCourses');
+  return fresh;
+}
+
+/** Delete saved course from Supabase, refetch all, update cache. */
+export async function removeSavedCourse(id: string): Promise<SavedCourse[]> {
+  if (!isSupabaseConfigured()) {
+    const next = loadSavedCoursesCache().filter((course) => course.id !== id);
+    cacheSavedCourses(next, 'removeSavedCourse offline');
+    return next;
+  }
+
+  await deleteSavedCourseFromCloud(id);
+  const fresh = await fetchSavedCoursesFromCloud();
+  cacheSavedCourses(fresh, 'after removeSavedCourse');
   return fresh;
 }
 

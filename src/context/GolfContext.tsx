@@ -1,18 +1,51 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { PlayerProfile, Round, SavedCourse } from '../types';
 import { createEmptyRound } from '../types';
 import {
+  bootstrapFromCloud,
+  persistRound,
+  persistSavedCourse,
+  refreshFromCloud,
+  removeRound,
+  removeSavedCourse,
+} from '../utils/cloudSync';
+import {
   applySavedCourseToRound,
-  loadSavedCourses,
-  saveSavedCourses,
+  loadSavedCoursesCache,
+  normalizeCourseKey,
   seedSavedCoursesFromRounds,
   upsertSavedCourse,
 } from '../utils/savedCourses';
-import { loadProfile, loadRounds, normalizeRoundHoles, saveProfile, saveRounds } from '../utils/storage';
 import { isRoundLocked } from '../utils/roundLock';
+import { syncError } from '../utils/syncLog';
+import {
+  loadProfile,
+  loadRoundsCache,
+  normalizeRoundHoles,
+  saveProfile,
+} from '../utils/storage';
+
+const IN_PROGRESS_SYNC_MS = 1500;
 
 function findInProgressRound(rounds: Round[]): Round | null {
   return rounds.find((r) => !r.completed) ?? null;
+}
+
+function mergeRoundList(prev: Round[], normalized: Round): Round[] {
+  const idx = prev.findIndex((r) => r.id === normalized.id);
+  if (idx >= 0) {
+    const next = [...prev];
+    next[idx] = normalized;
+    return next;
+  }
+  return [normalized, ...prev];
 }
 
 interface GolfContextValue {
@@ -21,6 +54,7 @@ interface GolfContextValue {
   profile: PlayerProfile;
   activeRound: Round | null;
   editingSavedRound: boolean;
+  syncReady: boolean;
   setProfile: (profile: PlayerProfile) => void;
   startNewRound: () => Round;
   setActiveRound: (round: Round | null) => void;
@@ -33,48 +67,110 @@ interface GolfContextValue {
   clearEditingRound: () => void;
   completeRound: () => void;
   deleteRound: (id: string) => void;
+  deleteSavedCourse: (id: string) => void;
   setRoundLocked: (id: string, locked: boolean) => void;
 }
 
 const GolfContext = createContext<GolfContextValue | null>(null);
 
 export function GolfProvider({ children }: { children: ReactNode }) {
-  const [rounds, setRounds] = useState<Round[]>(() => loadRounds());
+  const [rounds, setRounds] = useState<Round[]>(() => loadRoundsCache());
   const [savedCourses, setSavedCourses] = useState<SavedCourse[]>(() =>
-    seedSavedCoursesFromRounds(loadRounds(), loadSavedCourses()),
+    seedSavedCoursesFromRounds(loadRoundsCache(), loadSavedCoursesCache()),
   );
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
   const [activeRound, setActiveRoundState] = useState<Round | null>(() =>
-    findInProgressRound(loadRounds()),
+    findInProgressRound(loadRoundsCache()),
   );
   const [editingSavedRound, setEditingSavedRound] = useState(false);
+  const [syncReady, setSyncReady] = useState(false);
+  const inProgressSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    saveRounds(rounds);
-  }, [rounds]);
+    let cancelled = false;
+
+    bootstrapFromCloud()
+      .then((result) => {
+        if (cancelled) return;
+        setRounds(result.rounds);
+        setSavedCourses(result.savedCourses);
+        setActiveRoundState((prev) => prev ?? findInProgressRound(result.rounds));
+        setSyncReady(true);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        syncError('Bootstrap failed — using localStorage cache', error);
+        const cachedRounds = loadRoundsCache();
+        setRounds(cachedRounds);
+        setSavedCourses(
+          seedSavedCoursesFromRounds(cachedRounds, loadSavedCoursesCache()),
+        );
+        setSyncReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
-    saveSavedCourses(savedCourses);
-  }, [savedCourses]);
+    if (!syncReady) return;
 
-  const persistCourseProfile = (round: Round) => {
-    setSavedCourses((prev) => upsertSavedCourse(prev, round));
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      void refreshFromCloud()
+        .then((result) => {
+          setRounds(result.rounds);
+          setSavedCourses(result.savedCourses);
+        })
+        .catch((error) => syncError('Refresh from cloud failed', error));
+    };
+
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [syncReady]);
+
+  const syncRoundToCloud = (round: Round) => {
+    const normalized = normalizeRoundHoles(round);
+    void persistRound(normalized)
+      .then(setRounds)
+      .catch((error) => syncError('Failed to sync round to cloud', error));
+  };
+
+  const syncSavedCourseFromRound = (round: Round) => {
+    setSavedCourses((prev) => {
+      const nextCourses = upsertSavedCourse(prev, round);
+      const key = normalizeCourseKey(round.courseName);
+      const course = nextCourses.find((item) => normalizeCourseKey(item.courseName) === key);
+      if (course) {
+        void persistSavedCourse(course)
+          .then(setSavedCourses)
+          .catch((error) => syncError('Failed to sync saved course to cloud', error));
+      }
+      return nextCourses;
+    });
   };
 
   // Keep in-progress round persisted while editing (survives refresh / mobile tab switch)
   useEffect(() => {
-    if (!activeRound || activeRound.completed) return;
+    if (!syncReady || !activeRound || activeRound.completed) return;
+
     const normalized = normalizeRoundHoles(activeRound);
-    setRounds((prev) => {
-      const idx = prev.findIndex((r) => r.id === normalized.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = normalized;
-        return next;
-      }
-      return [normalized, ...prev];
-    });
-  }, [activeRound]);
+    setRounds((prev) => mergeRoundList(prev, normalized));
+
+    if (inProgressSyncTimer.current) clearTimeout(inProgressSyncTimer.current);
+    inProgressSyncTimer.current = setTimeout(() => {
+      syncRoundToCloud(normalized);
+    }, IN_PROGRESS_SYNC_MS);
+
+    return () => {
+      if (inProgressSyncTimer.current) clearTimeout(inProgressSyncTimer.current);
+    };
+  }, [activeRound, syncReady]);
 
   const setProfile = (p: PlayerProfile) => {
     setProfileState(p);
@@ -120,16 +216,9 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     if (!activeRound) return;
     const normalized = normalizeRoundHoles(activeRound);
     setActiveRoundState(normalized);
-    setRounds((prev) => {
-      const idx = prev.findIndex((r) => r.id === normalized.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = normalized;
-        return next;
-      }
-      return [normalized, ...prev];
-    });
-    persistCourseProfile(normalized);
+    setRounds((prev) => mergeRoundList(prev, normalized));
+    syncRoundToCloud(normalized);
+    syncSavedCourseFromRound(normalized);
   };
 
   const saveEditedRound = () => {
@@ -143,18 +232,11 @@ export function GolfProvider({ children }: { children: ReactNode }) {
       isLocked: existing?.isLocked,
     });
 
-    setRounds((prev) => {
-      const idx = prev.findIndex((r) => r.id === normalized.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = normalized;
-        return next;
-      }
-      return [normalized, ...prev];
-    });
+    setRounds((prev) => mergeRoundList(prev, normalized));
     setActiveRoundState(null);
     setEditingSavedRound(false);
-    persistCourseProfile(normalized);
+    syncRoundToCloud(normalized);
+    syncSavedCourseFromRound(normalized);
   };
 
   const loadRoundForEdit = (id: string): boolean => {
@@ -180,34 +262,40 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const completeRound = () => {
     if (!activeRound) return;
     const completed = normalizeRoundHoles({ ...activeRound, completed: true, isLocked: true });
-    setRounds((prev) => {
-      const idx = prev.findIndex((r) => r.id === completed.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = completed;
-        return next;
-      }
-      return [completed, ...prev];
-    });
+    setRounds((prev) => mergeRoundList(prev, completed));
     setActiveRoundState(null);
     setEditingSavedRound(false);
+    syncRoundToCloud(completed);
   };
 
   const deleteRound = (id: string) => {
     const round = rounds.find((r) => r.id === id);
     if (round && isRoundLocked(round)) return;
-    setRounds((prev) => prev.filter((r) => r.id !== id));
     if (activeRound?.id === id) {
       setActiveRoundState(null);
       setEditingSavedRound(false);
     }
+    void removeRound(id)
+      .then(setRounds)
+      .catch((error) => syncError('Failed to delete round from cloud', error));
+  };
+
+  const deleteSavedCourse = (id: string) => {
+    void removeSavedCourse(id)
+      .then(setSavedCourses)
+      .catch((error) => syncError('Failed to delete saved course from cloud', error));
   };
 
   const setRoundLocked = (id: string, locked: boolean) => {
-    setRounds((prev) => prev.map((r) => (r.id === id ? { ...r, isLocked: locked } : r)));
+    const round = rounds.find((r) => r.id === id);
+    if (!round) return;
+
+    const updated = { ...round, isLocked: locked };
+    setRounds((prev) => prev.map((r) => (r.id === id ? updated : r)));
     if (activeRound?.id === id) {
       setActiveRoundState((prev) => (prev ? { ...prev, isLocked: locked } : prev));
     }
+    syncRoundToCloud(updated);
   };
 
   return (
@@ -218,6 +306,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         profile,
         activeRound,
         editingSavedRound,
+        syncReady,
         setProfile,
         startNewRound,
         setActiveRound,
@@ -230,6 +319,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         clearEditingRound,
         completeRound,
         deleteRound,
+        deleteSavedCourse,
         setRoundLocked,
       }}
     >
