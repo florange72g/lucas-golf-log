@@ -13,7 +13,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['golf-logo.png', 'golf-logo-192.png', 'golf-logo-512.png', 'apple-touch-icon.png', 'favicon.png'],
+      includeAssets: ['golf-logo.png', 'golf-logo-192.png', 'golf-logo-512.png', 'apple-touch-icon.png', 'favicon.png', 'lucas-scorecard-bg.png', 'lucas-golf-photo.png'],
       manifest: {
         name: 'Lucas Golf Log',
         short_name: 'Lucas Golf Log',
