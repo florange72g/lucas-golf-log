@@ -1,6 +1,6 @@
 import type { PlayerProfile, Round } from '../types';
 import { DEFAULT_PROFILE } from '../types';
-import { DEFAULT_TOURNAMENT_RESULTS } from '../data/defaultTournamentResults';
+import { DEFAULT_TOURNAMENT_RESULTS, REMOVED_TOURNAMENT_IDS } from '../data/defaultTournamentResults';
 import { normalizeHole, normalizeMental, normalizeRoundType, serializeHole } from '../types';
 
 const ROUNDS_KEY = 'golf-log-rounds';
@@ -60,16 +60,17 @@ export const loadRounds = loadRoundsCache;
 export const saveRounds = saveRoundsCache;
 
 export function normalizeProfile(raw: Partial<PlayerProfile>): PlayerProfile {
-  const tournamentResults =
-    raw.tournamentResults && raw.tournamentResults.length > 0
-      ? raw.tournamentResults.map((result) => ({
+  const tournamentResults = Array.isArray(raw.tournamentResults)
+    ? raw.tournamentResults
+        .map((result) => ({
           id: result.id ?? crypto.randomUUID(),
           name: result.name?.trim() ?? '',
           finish: result.finish?.trim() ?? '',
           scores: result.scores?.trim() ?? '',
           url: result.url?.trim() ?? '',
         }))
-      : DEFAULT_TOURNAMENT_RESULTS;
+        .filter((result) => !REMOVED_TOURNAMENT_IDS.has(result.id))
+    : DEFAULT_TOURNAMENT_RESULTS;
 
   return {
     name: raw.name ?? DEFAULT_PROFILE.name,

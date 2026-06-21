@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import SwipeableTournamentResultRow from '../components/SwipeableTournamentResultRow';
 import { useGolf } from '../context/GolfContext';
 import {
   formatScoringAverage,
@@ -24,6 +25,15 @@ export default function RecruitingReport() {
   };
 
   const handlePrint = () => window.print();
+
+  const handleDeleteTournamentResult = (id: string) => {
+    const next = {
+      ...profile,
+      tournamentResults: profile.tournamentResults.filter((result) => result.id !== id),
+    };
+    setProfile(next);
+    setDraft(next);
+  };
 
   const displayProfile = editing ? draft : profile;
 
@@ -111,38 +121,16 @@ export default function RecruitingReport() {
             <h3 className="text-sm font-bold uppercase tracking-wide text-fairway-600">
               Tournament Results
             </h3>
-            <div className="mt-4 space-y-4">
+            <p className="mt-1 text-[10px] text-fairway-400 print:hidden">
+              Swipe left on a result to delete.
+            </p>
+            <div className="mt-4 space-y-3">
               {displayProfile.tournamentResults.map((result) => (
-                <article
+                <SwipeableTournamentResultRow
                   key={result.id}
-                  className="border-b border-sand pb-4 last:border-0 last:pb-0"
-                >
-                  <h4 className="text-sm font-semibold leading-snug text-fairway-800">
-                    {result.name}
-                  </h4>
-                  <div className="mt-2 space-y-0.5 text-sm text-fairway-600">
-                    {result.finish && (
-                      <p>
-                        <span className="font-semibold text-fairway-700">Finish:</span>{' '}
-                        <span className="font-bold tabular-nums text-fairway-800">{result.finish}</span>
-                      </p>
-                    )}
-                    <p>
-                      <span className="font-semibold text-fairway-700">Scores:</span>{' '}
-                      <span className="tabular-nums">{result.scores}</span>
-                    </p>
-                  </div>
-                  {result.url && (
-                    <a
-                      href={result.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-1.5 inline-block text-xs font-semibold text-fairway-500 underline print:text-fairway-700"
-                    >
-                      View results →
-                    </a>
-                  )}
-                </article>
+                  result={result}
+                  onDelete={handleDeleteTournamentResult}
+                />
               ))}
             </div>
           </section>

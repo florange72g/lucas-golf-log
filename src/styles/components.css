@@ -24,6 +24,18 @@
     @apply w-full rounded-lg border border-sand bg-cream px-2 py-1.5 text-center text-sm font-semibold text-fairway-800 outline-none transition focus:border-fairway-400 focus:ring-2 focus:ring-fairway-200;
   }
 
+  .swipe-row {
+    position: relative;
+  }
+
+  .swipe-row-delete {
+    z-index: 0;
+  }
+
+  .swipe-row-content {
+    z-index: 1;
+  }
+
   .logo-container {
     display: flex;
     align-items: center;
@@ -106,5 +118,13 @@
   .recruiting-report {
     padding: 0;
     max-width: none;
+  }
+
+  .swipe-row-delete {
+    display: none !important;
+  }
+
+  .swipe-row-content {
+    transform: none !important;
   }
 }

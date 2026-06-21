@@ -1,5 +1,11 @@
 import type { TournamentResult } from '../types';
 
+const REMOVED_TOURNAMENT_IDS = new Set([
+  'nb3-qc-bromont-2025',
+  'nb3-ottawa-greensmere-2025',
+  'nb3-jgnc-regional-final',
+]);
+
 export const DEFAULT_TOURNAMENT_RESULTS: TournamentResult[] = [
   {
     id: 'us-junior-am-ny-qual-2025',
@@ -23,20 +29,6 @@ export const DEFAULT_TOURNAMENT_RESULTS: TournamentResult[] = [
     url: 'https://cjga.onpar.golf/tournament_results.php?tournament_id=2707&s_division=262',
   },
   {
-    id: 'nb3-qc-bromont-2025',
-    name: 'Notah Begay III QC Qualifier at Chateau Bromont 2025',
-    finish: '6th',
-    scores: '78',
-    url: 'https://tournaments.nb3canada.org/Scoreboard?TournamentID=29869&TournamentDivisionID=138780&IsCombinedDivision=False',
-  },
-  {
-    id: 'nb3-ottawa-greensmere-2025',
-    name: 'Notah Begay III Ottawa Qualifier at Greensmere 2025',
-    finish: 'T3',
-    scores: '77, 78',
-    url: 'https://tournaments.nb3canada.org/Scoreboard?TournamentID=29864&TournamentDivisionID=138740&IsCombinedDivision=False',
-  },
-  {
     id: 'qc-juvenile-2025',
     name: 'Quebec Provincial Juvenile Championship 2025',
     finish: 'T10',
@@ -56,13 +48,6 @@ export const DEFAULT_TOURNAMENT_RESULTS: TournamentResult[] = [
     finish: '1st',
     scores: '39, 73',
     url: 'https://tournaments.hjgt.org/Scoreboard?TournamentID=29752&TournamentDivisionID=138041&IsCombinedDivision=False',
-  },
-  {
-    id: 'nb3-jgnc-regional-final',
-    name: 'Notah Begay III Jr Golf National Championship Regional Final',
-    finish: 'T8',
-    scores: '79, 72',
-    url: 'https://www.jgnc.org/Scoreboard?TournamentID=29451&TournamentDivisionID=136460&IsCombinedDivision=False',
   },
   {
     id: 'hjgt-disney-fall',
@@ -107,3 +92,5 @@ export const DEFAULT_TOURNAMENT_RESULTS: TournamentResult[] = [
     url: 'https://www.golfgenius.com/pages/12155775372243290392',
   },
 ];
+
+export { REMOVED_TOURNAMENT_IDS };
