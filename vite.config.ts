@@ -13,7 +13,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['golf-ball.svg'],
+      includeAssets: ['golf-logo.png', 'golf-logo-192.png', 'golf-logo-512.png', 'apple-touch-icon.png', 'favicon.png'],
       manifest: {
         name: 'GOLF Log',
         short_name: 'GOLF Log',
@@ -26,15 +26,21 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: '/golf-ball.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/golf-logo-192.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/golf-ball.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/golf-logo-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/golf-logo-512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'maskable',
           },
         ],
