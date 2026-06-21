@@ -30,7 +30,7 @@ function normalizeSavedCourse(raw: Partial<SavedCourse>): SavedCourse {
   };
 }
 
-export function loadSavedCourses(): SavedCourse[] {
+export function loadSavedCoursesCache(): SavedCourse[] {
   try {
     const raw = localStorage.getItem(SAVED_COURSES_KEY);
     return raw
@@ -43,9 +43,15 @@ export function loadSavedCourses(): SavedCourse[] {
   }
 }
 
-export function saveSavedCourses(courses: SavedCourse[]): void {
+export function saveSavedCoursesCache(courses: SavedCourse[]): void {
   localStorage.setItem(SAVED_COURSES_KEY, JSON.stringify(courses));
 }
+
+/** @deprecated Use loadSavedCoursesCache — localStorage is cache only when Supabase is configured. */
+export const loadSavedCourses = loadSavedCoursesCache;
+
+/** @deprecated Use saveSavedCoursesCache — localStorage is cache only when Supabase is configured. */
+export const saveSavedCourses = saveSavedCoursesCache;
 
 export function findSavedCourseByName(courses: SavedCourse[], name: string): SavedCourse | undefined {
   const key = normalizeCourseKey(name);
@@ -62,7 +68,7 @@ export function savedCourseFromRound(round: Round): SavedCourse | null {
     holes: round.holes.map((hole) => ({
       holeNumber: hole.hole,
       par: typeof hole.par === 'number' ? hole.par : 4,
-      yardage: hole.yards,
+      yardage: typeof hole.yards === 'number' ? hole.yards : 0,
     })),
     courseHandicap: round.courseHandicap,
     slopeRating: round.slopeRating,

@@ -2,8 +2,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { GolfProvider } from './context/GolfContext';
+import { registerPwaUpdates } from './registerPwa';
 import App from './App';
 import './index.css';
+
+registerPwaUpdates();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

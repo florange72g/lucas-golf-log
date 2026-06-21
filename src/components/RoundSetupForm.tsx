@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useGolf } from '../context/GolfContext';
 import CourseNameAutocomplete from './CourseNameAutocomplete';
 import { ROUND_TYPES, normalizeHole, type HoleEntry, type RoundType } from '../types';
@@ -7,6 +7,7 @@ import {
   PAR_ERROR_MESSAGE,
   parAsNumber,
 } from '../utils/parInput';
+import { normalizeYardsForBlur, yardsAsNumber } from '../utils/yardsInput';
 
 const WEATHER_OPTIONS = ['Clear', 'Cloudy', 'Windy', 'Rain', 'Cold', 'Hot'] as const;
 
@@ -30,6 +31,8 @@ export default function RoundSetupForm({
 
   const round = activeRound;
   const [parErrors, setParErrors] = useState<Record<number, string>>({});
+  const parInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const yardsInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const holesSignature = round.holes.map((h) => `${h.hole}:${h.par}:${h.yards}`).join('|');
   useEffect(() => {
@@ -86,6 +89,55 @@ export default function RoundSetupForm({
     }
   };
 
+  const handleSetupInputFocus = (e: FocusEvent<HTMLInputElement>) => {
+    e.target.select();
+  };
+
+  const focusParInput = (index: number) => {
+    const input = parInputRefs.current[index];
+    if (!input) return;
+    input.focus();
+    input.select();
+  };
+
+  const focusYardsInput = (index: number) => {
+    const input = yardsInputRefs.current[index];
+    if (!input) return;
+    input.focus();
+    input.select();
+  };
+
+  const handleParKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (index < round.holes.length - 1) focusParInput(index + 1);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (index > 0) focusParInput(index - 1);
+    }
+  };
+
+  const handleYardsKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (index < round.holes.length - 1) focusYardsInput(index + 1);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (index > 0) focusYardsInput(index - 1);
+    }
+  };
+
+  const handleYardsBlur = (index: number, yards: HoleEntry['yards']) => {
+    const normalized = normalizeYardsForBlur(yards);
+    if (normalized !== yards) {
+      updateHoleLayout(index, { par: round.holes[index].par, yards: normalized });
+    }
+  };
+
   const validateAllPars = (): boolean => {
     const errors: Record<number, string> = {};
 
@@ -114,15 +166,8 @@ export default function RoundSetupForm({
     onSecondary?.();
   };
 
-  const parseYardsInput = (value: string): number => {
-    if (value.trim() === '') return 0;
-    const parsed = Number(value);
-    if (Number.isNaN(parsed)) return 0;
-    return Math.min(700, Math.max(0, Math.round(parsed)));
-  };
-
   const totalPar = round.holes.reduce((sum, hole) => sum + parAsNumber(hole.par), 0);
-  const totalYards = round.holes.reduce((sum, hole) => sum + hole.yards, 0);
+  const totalYards = round.holes.reduce((sum, hole) => sum + yardsAsNumber(hole.yards), 0);
 
   return (
     <div className="space-y-4 px-4 pt-1 pb-6">
@@ -245,6 +290,9 @@ export default function RoundSetupForm({
               <span className="text-sm font-bold text-fairway-800">Hole {hole.hole}</span>
               <div>
                 <input
+                  ref={(el) => {
+                    parInputRefs.current[index] = el;
+                  }}
                   type="text"
                   inputMode="numeric"
                   value={hole.par ?? ''}
@@ -254,6 +302,8 @@ export default function RoundSetupForm({
                     clearParError(hole.hole);
                     updateHoleLayout(index, { par, yards: hole.yards });
                   }}
+                  onFocus={handleSetupInputFocus}
+                  onKeyDown={(e) => handleParKeyDown(e, index)}
                   onBlur={() => handleParBlur(hole.hole, hole.par)}
                   aria-invalid={parErrors[hole.hole] ? true : undefined}
                   className={`hole-setup-input${parErrors[hole.hole] ? ' border-red-500' : ''}`}
@@ -265,13 +315,21 @@ export default function RoundSetupForm({
                 )}
               </div>
               <input
-                type="number"
-                min={0}
-                max={700}
-                value={hole.yards === 0 ? '' : hole.yards}
-                onChange={(e) =>
-                  updateHoleLayout(index, { par: hole.par, yards: parseYardsInput(e.target.value) })
-                }
+                ref={(el) => {
+                  yardsInputRefs.current[index] = el;
+                }}
+                type="text"
+                inputMode="numeric"
+                value={hole.yards ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const yards = value === '' ? '' : Number(value);
+                  if (value !== '' && Number.isNaN(yards)) return;
+                  updateHoleLayout(index, { par: hole.par, yards });
+                }}
+                onFocus={handleSetupInputFocus}
+                onKeyDown={(e) => handleYardsKeyDown(e, index)}
+                onBlur={() => handleYardsBlur(index, hole.yards)}
                 className="hole-setup-input"
               />
             </div>

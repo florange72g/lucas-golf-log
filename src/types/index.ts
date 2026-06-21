@@ -9,11 +9,12 @@ export const IRON_WOOD_CLUBS = [
 export const APPROACH_CLUBS = IRON_WOOD_CLUBS;
 
 import type { ParValue } from '../utils/parInput';
+import type { YardsValue } from '../utils/yardsInput';
 
 export interface Hole {
   hole: number;
   par: ParValue;
-  yards: number;
+  yards: YardsValue;
   driver: string;
   fairway: 'Hit' | 'Left' | 'Right' | 'N/A';
   gir: 'Hit' | 'Miss' | 'N/A';
@@ -277,7 +278,7 @@ export function createEmptyHole(index: number): HoleEntry {
   return {
     hole: index + 1,
     par,
-    yards: 0,
+    yards: '',
     driver: '',
     fairway: par === 3 ? 'N/A' : '',
     gir: '',

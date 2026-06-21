@@ -14,7 +14,7 @@ export function normalizeRoundHoles(round: Round): Round {
   };
 }
 
-function normalizeRound(raw: Round & { tournament?: boolean }): Round {
+export function normalizeRound(raw: Round & { tournament?: boolean }): Round {
   const roundType = normalizeRoundType(raw.roundType, raw.tournament);
   const teeBox = VALID_TEE_BOXES.includes(raw.teeBox as (typeof VALID_TEE_BOXES)[number])
     ? raw.teeBox
@@ -32,14 +32,14 @@ function normalizeRound(raw: Round & { tournament?: boolean }): Round {
   };
 }
 
-function serializeRound(round: Round): Round {
+export function serializeRound(round: Round): Round {
   return {
     ...round,
     holes: round.holes.map(serializeHole),
   };
 }
 
-export function loadRounds(): Round[] {
+export function loadRoundsCache(): Round[] {
   try {
     const raw = localStorage.getItem(ROUNDS_KEY);
     return raw ? (JSON.parse(raw) as Round[]).map(normalizeRound) : [];
@@ -48,9 +48,15 @@ export function loadRounds(): Round[] {
   }
 }
 
-export function saveRounds(rounds: Round[]): void {
+export function saveRoundsCache(rounds: Round[]): void {
   localStorage.setItem(ROUNDS_KEY, JSON.stringify(rounds.map(serializeRound)));
 }
+
+/** @deprecated Use loadRoundsCache — localStorage is cache only when Supabase is configured. */
+export const loadRounds = loadRoundsCache;
+
+/** @deprecated Use saveRoundsCache — localStorage is cache only when Supabase is configured. */
+export const saveRounds = saveRoundsCache;
 
 export function normalizeProfile(raw: Partial<PlayerProfile>): PlayerProfile {
   return {

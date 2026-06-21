@@ -1,7 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { PlayerProfile, Round, SavedCourse } from '../types';
 import { createEmptyRound } from '../types';
-import { applySavedCourseToRound, loadSavedCourses, saveSavedCourses, seedSavedCoursesFromRounds, upsertSavedCourse } from '../utils/savedCourses';
+import {
+  applySavedCourseToRound,
+  loadSavedCourses,
+  saveSavedCourses,
+  seedSavedCoursesFromRounds,
+  upsertSavedCourse,
+} from '../utils/savedCourses';
 import { loadProfile, loadRounds, normalizeRoundHoles, saveProfile, saveRounds } from '../utils/storage';
 import { isRoundLocked } from '../utils/roundLock';
 
@@ -130,11 +136,13 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     if (!activeRound) return;
     const existing = rounds.find((r) => r.id === activeRound.id);
     if (existing && isRoundLocked(existing)) return;
+
     const normalized = normalizeRoundHoles({
       ...activeRound,
       completed: existing?.completed ?? true,
       isLocked: existing?.isLocked,
     });
+
     setRounds((prev) => {
       const idx = prev.findIndex((r) => r.id === normalized.id);
       if (idx >= 0) {
@@ -196,9 +204,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   };
 
   const setRoundLocked = (id: string, locked: boolean) => {
-    setRounds((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, isLocked: locked } : r)),
-    );
+    setRounds((prev) => prev.map((r) => (r.id === id ? { ...r, isLocked: locked } : r)));
     if (activeRound?.id === id) {
       setActiveRoundState((prev) => (prev ? { ...prev, isLocked: locked } : prev));
     }

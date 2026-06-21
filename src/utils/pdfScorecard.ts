@@ -9,6 +9,7 @@ import {
 } from './stats';
 import { getScoreMarkerType } from './scoreMarker';
 import { parAsNumber } from './parInput';
+import { yardsAsNumber } from './yardsInput';
 
 export { getScoreMarkerType };
 export type { ScoreMarkerType } from './scoreMarker';
@@ -20,7 +21,7 @@ const MUTED = { r: 100, g: 120, b: 110 };
 const BORDER = { r: 180, g: 190, b: 185 };
 
 export function calcTotalYards(holes: HoleEntry[]): number {
-  return holes.reduce((sum, h) => sum + h.yards, 0);
+  return holes.reduce((sum, h) => sum + yardsAsNumber(h.yards), 0);
 }
 
 export function drawCircle(doc: jsPDF, x: number, y: number, radius: number): void {
@@ -177,7 +178,7 @@ function drawNineScorecard(
       if (row.key === 'hole') {
         centerText(doc, String(hole.hole), cx, cy, true, 8);
       } else if (row.key === 'yards') {
-        centerText(doc, hole.yards > 0 ? String(hole.yards) : '—', cx, cy, false, 7);
+        centerText(doc, yardsAsNumber(hole.yards) > 0 ? String(yardsAsNumber(hole.yards)) : '—', cx, cy, false, 7);
       } else if (row.key === 'par') {
         centerText(doc, String(parAsNumber(hole.par)), cx, cy, false, 8);
       } else if (isScoreRow) {

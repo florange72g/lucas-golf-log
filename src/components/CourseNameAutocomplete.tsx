@@ -81,7 +81,7 @@ export default function CourseNameAutocomplete({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
-        placeholder="e.g. Pine Valley GC"
+        placeholder="e.g.Pinegrove Golf Club"
         className="input-field"
         role="combobox"
         aria-expanded={open}

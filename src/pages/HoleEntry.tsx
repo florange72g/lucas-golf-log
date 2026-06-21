@@ -10,6 +10,7 @@ import { useGolf } from '../context/GolfContext';
 import type { HoleEntry } from '../types';
 import { DRIVER_CLUBS, IRON_WOOD_CLUBS, isHoleLogged, normalizeHole } from '../types';
 import { isValidPar, parAsNumber } from '../utils/parInput';
+import { yardsAsNumber } from '../utils/yardsInput';
 import {
   backNine,
   calcTotalScore,
@@ -176,7 +177,7 @@ export default function HoleEntry() {
           </div>
           <InfoCell
             label="Yards"
-            value={hole.yards}
+            value={yardsAsNumber(hole.yards)}
             editable
             onChange={(v) => updateHole({ yards: v })}
           />

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AppVersion from '../components/AppVersion';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import { useGolf } from '../context/GolfContext';
@@ -91,6 +92,8 @@ export default function Dashboard() {
             </div>
           </section>
         )}
+
+        <AppVersion className="pt-4" />
       </div>
     </>
   );
