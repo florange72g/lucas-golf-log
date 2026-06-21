@@ -146,6 +146,10 @@ export default function RecruitingReport() {
                 hint="Use negative for plus (e.g. -1 = +1.0)"
               />
               <ProfileField label="School" value={draft.school} onChange={(school) => setDraft({ ...draft, school })} />
+              <div className="grid grid-cols-2 gap-2">
+                <ProfileField label="GPA" value={draft.gpa} onChange={(gpa) => setDraft({ ...draft, gpa })} />
+                <ProfileField label="SAT" value={draft.sat} onChange={(sat) => setDraft({ ...draft, sat })} />
+              </div>
               <ProfileField label="Email" value={draft.email} onChange={(email) => setDraft({ ...draft, email })} />
               <ProfileField label="Coach" value={draft.coach} onChange={(coach) => setDraft({ ...draft, coach })} />
               <ProfileField
@@ -166,6 +170,10 @@ export default function RecruitingReport() {
             <div className="mt-4 space-y-0 border-t border-sand pt-4">
               <ReportRow label="Handicap" value={formatHandicap(displayProfile.handicap)} />
               <ReportRow label="School" value={displayProfile.school || '—'} />
+              <ReportPairRow
+                left={{ label: 'GPA', value: displayProfile.gpa || '—' }}
+                right={{ label: 'SAT', value: displayProfile.sat || '—' }}
+              />
               <ReportRow label="Email" value={displayProfile.email || '—'} />
               <ReportRow label="Coach" value={displayProfile.coach || '—'} />
             </div>
@@ -293,6 +301,30 @@ function UnlockIcon() {
         strokeLinecap="round"
       />
     </svg>
+  );
+}
+
+function ReportPairRow({
+  left,
+  right,
+}: {
+  left: { label: string; value: string };
+  right: { label: string; value: string };
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4 border-b border-current/10 pb-3 last:border-0 last:pb-0">
+      <ReportPairCell label={left.label} value={left.value} />
+      <ReportPairCell label={right.label} value={right.value} />
+    </div>
+  );
+}
+
+function ReportPairCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="text-sm font-medium text-fairway-600">{label}:</span>
+      <span className="text-right text-sm font-bold tabular-nums text-fairway-800">{value}</span>
+    </div>
   );
 }
 

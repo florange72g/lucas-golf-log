@@ -301,6 +301,8 @@ export interface PlayerProfile {
   gradYear: number;
   handicap: number;
   school: string;
+  gpa: string;
+  sat: string;
   email: string;
   coach: string;
   strength: string;
@@ -313,6 +315,8 @@ export const DEFAULT_PROFILE: PlayerProfile = {
   gradYear: 2028,
   handicap: -1,
   school: '',
+  gpa: '',
+  sat: '',
   email: '',
   coach: '',
   strength: 'Approach Play',
