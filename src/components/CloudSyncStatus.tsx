@@ -47,7 +47,16 @@ export default function CloudSyncStatus() {
               )}
             </p>
           )}
-          {!supabaseDebug.configured && (
+          {!supabaseDebug.configured && supabaseDebug.urlHint && (
+            <p className="mt-1 text-[10px] text-amber-700">{supabaseDebug.urlHint}</p>
+          )}
+          {/Invalid path specified in request URL/i.test(syncError ?? '') && (
+            <p className="mt-1 text-[10px] text-amber-700">
+              In Vercel, set VITE_SUPABASE_URL to your Project URL from Supabase → Settings →
+              API, e.g. https://xxxxx.supabase.co (no trailing slash).
+            </p>
+          )}
+          {!supabaseDebug.configured && !supabaseDebug.urlHint && (
             <p className="mt-1 text-[10px] text-amber-700">
               Supabase env vars missing in this build.
             </p>
