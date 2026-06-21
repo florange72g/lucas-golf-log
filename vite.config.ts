@@ -15,8 +15,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['golf-logo.png', 'golf-logo-192.png', 'golf-logo-512.png', 'apple-touch-icon.png', 'favicon.png'],
       manifest: {
-        name: 'GOLF Log',
-        short_name: 'GOLF Log',
+        name: 'Lucas Golf Log',
+        short_name: 'Lucas Golf Log',
         description: 'Golf scoring and round tracking for Lucas',
         theme_color: '#1B4332',
         background_color: '#F5F0E8',

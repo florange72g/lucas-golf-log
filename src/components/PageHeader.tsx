@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import AppLogo from './AppLogo';
 
 interface PageHeaderProps {
   title: string;
@@ -10,6 +11,9 @@ interface PageHeaderProps {
 export default function PageHeader({ title, subtitle, backTo, action }: PageHeaderProps) {
   return (
     <header className="bg-fairway-800 px-5 pb-6 pt-4 text-white">
+      <div className="mb-4">
+        <AppLogo />
+      </div>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           {backTo && (

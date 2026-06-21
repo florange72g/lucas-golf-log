@@ -24,6 +24,37 @@
     @apply w-full rounded-lg border border-sand bg-cream px-2 py-1.5 text-center text-sm font-semibold text-fairway-800 outline-none transition focus:border-fairway-400 focus:ring-2 focus:ring-fairway-200;
   }
 
+  .logo-wrapper {
+    @apply inline-flex items-center gap-2.5 no-underline;
+  }
+
+  .app-logo {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    border-radius: 0;
+    background: transparent;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.1;
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 640px) {
+    .app-logo {
+      width: 40px;
+      height: 40px;
+    }
+
+    .logo-text {
+      font-size: 0.875rem;
+    }
+  }
+
   .pdf-player-photo {
     width: 180px;
     height: 180px;
