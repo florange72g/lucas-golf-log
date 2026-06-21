@@ -163,29 +163,41 @@ function drawHoleRows(
   return y;
 }
 
-function openScoreCardImage(canvas: HTMLCanvasElement, filename: string): void {
-  const dataUrl = canvas.toDataURL('image/png');
-  const tab = window.open('', '_blank', 'noopener,noreferrer');
-  if (tab) {
-    tab.document.write(
-      `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${filename}</title><style>body{margin:0;background:#111;display:flex;justify-content:center}img{max-width:100%;height:auto}</style></head><body><img src="${dataUrl}" alt="Score Card"/></body></html>`,
-    );
-    tab.document.close();
-    return;
-  }
+function openScoreCardImage(canvas: HTMLCanvasElement): void {
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const tab = window.open('', '_blank', 'noopener,noreferrer');
 
-  const link = document.createElement('a');
-  link.href = dataUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}
+    if (tab) {
+      tab.document.write(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Score Card</title>
+<style>
+  body { margin:0; min-height:100vh; background:#111; display:flex; align-items:center; justify-content:center; }
+  img { max-width:100%; max-height:100vh; width:auto; height:auto; }
+</style>
+</head>
+<body>
+  <img src="${url}" alt="Score Card" />
+</body>
+</html>`);
+      tab.document.close();
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
 
-function scoreCardFilename(round: Round): string {
-  const course = (round.courseName.trim() || 'Golf_Round').replace(/[^a-zA-Z0-9]+/g, '_');
-  const date = round.date.slice(0, 10);
-  return `Lucas_Score_Card_${course}_${date}.png`;
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }, 'image/png');
 }
 
 export async function generateScoreCard(round: Round): Promise<void> {
@@ -318,5 +330,5 @@ export async function generateScoreCard(round: Round): Promise<void> {
 
   ctx.restore();
 
-  openScoreCardImage(canvas, scoreCardFilename(round));
+  openScoreCardImage(canvas);
 }
