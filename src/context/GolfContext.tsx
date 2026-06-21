@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -10,11 +11,13 @@ import type { PlayerProfile, Round, SavedCourse } from '../types';
 import { createEmptyRound } from '../types';
 import {
   bootstrapFromCloud,
+  persistProfile,
   persistRound,
   persistSavedCourse,
   refreshFromCloud,
   removeRound,
   removeSavedCourse,
+  type CloudBootstrapResult,
 } from '../utils/cloudSync';
 import {
   applySavedCourseToRound,
@@ -26,13 +29,14 @@ import {
 import { isRoundLocked } from '../utils/roundLock';
 import { syncError } from '../utils/syncLog';
 import {
-  loadProfile,
+  loadProfileCache,
   loadRoundsCache,
   normalizeRoundHoles,
-  saveProfile,
+  saveProfileCache,
 } from '../utils/storage';
 
 const IN_PROGRESS_SYNC_MS = 1500;
+const CLOUD_REFRESH_MS = 30_000;
 
 function findInProgressRound(rounds: Round[]): Round | null {
   return rounds.find((r) => !r.completed) ?? null;
@@ -46,6 +50,31 @@ function mergeRoundList(prev: Round[], normalized: Round): Round[] {
     return next;
   }
   return [normalized, ...prev];
+}
+
+function reconcileActiveRound(cloudRounds: Round[], previous: Round | null): Round | null {
+  const fromCloud = findInProgressRound(cloudRounds);
+  if (fromCloud) return normalizeRoundHoles(fromCloud);
+
+  if (previous) {
+    const match = cloudRounds.find((round) => round.id === previous.id);
+    if (match && !match.completed) return normalizeRoundHoles(match);
+  }
+
+  return null;
+}
+
+function applyCloudResult(
+  result: CloudBootstrapResult,
+  setRounds: (rounds: Round[]) => void,
+  setSavedCourses: (courses: SavedCourse[]) => void,
+  setProfileState: (profile: PlayerProfile) => void,
+  setActiveRoundState: (updater: (prev: Round | null) => Round | null) => void,
+): void {
+  setRounds(result.rounds);
+  setSavedCourses(result.savedCourses);
+  setProfileState(result.profile);
+  setActiveRoundState((prev) => reconcileActiveRound(result.rounds, prev));
 }
 
 interface GolfContextValue {
@@ -78,13 +107,30 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const [savedCourses, setSavedCourses] = useState<SavedCourse[]>(() =>
     seedSavedCoursesFromRounds(loadRoundsCache(), loadSavedCoursesCache()),
   );
-  const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
+  const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfileCache());
   const [activeRound, setActiveRoundState] = useState<Round | null>(() =>
     findInProgressRound(loadRoundsCache()),
   );
   const [editingSavedRound, setEditingSavedRound] = useState(false);
   const [syncReady, setSyncReady] = useState(false);
   const inProgressSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRoundRef = useRef<Round | null>(null);
+
+  const syncRoundToCloud = useCallback((round: Round) => {
+    const normalized = normalizeRoundHoles(round);
+    pendingRoundRef.current = null;
+    void persistRound(normalized)
+      .then(setRounds)
+      .catch((error) => syncError('Failed to sync round to cloud', error));
+  }, []);
+
+  const pullFromCloud = useCallback(() => {
+    void refreshFromCloud()
+      .then((result) => {
+        applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
+      })
+      .catch((error) => syncError('Refresh from cloud failed', error));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,9 +138,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     bootstrapFromCloud()
       .then((result) => {
         if (cancelled) return;
-        setRounds(result.rounds);
-        setSavedCourses(result.savedCourses);
-        setActiveRoundState((prev) => prev ?? findInProgressRound(result.rounds));
+        applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
         setSyncReady(true);
       })
       .catch((error) => {
@@ -105,6 +149,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         setSavedCourses(
           seedSavedCoursesFromRounds(cachedRounds, loadSavedCoursesCache()),
         );
+        setProfileState(loadProfileCache());
         setSyncReady(true);
       });
 
@@ -114,32 +159,50 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!syncReady || !activeRound || activeRound.completed) return;
+    syncRoundToCloud(activeRound);
+  }, [syncReady, activeRound?.id, syncRoundToCloud]);
+
+  useEffect(() => {
     if (!syncReady) return;
 
     const refresh = () => {
       if (document.visibilityState !== 'visible') return;
-      void refreshFromCloud()
-        .then((result) => {
-          setRounds(result.rounds);
-          setSavedCourses(result.savedCourses);
-        })
-        .catch((error) => syncError('Refresh from cloud failed', error));
+      pullFromCloud();
     };
 
+    const intervalId = window.setInterval(refresh, CLOUD_REFRESH_MS);
     document.addEventListener('visibilitychange', refresh);
     window.addEventListener('focus', refresh);
+    window.addEventListener('pageshow', refresh);
+
     return () => {
+      window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('focus', refresh);
+      window.removeEventListener('pageshow', refresh);
     };
-  }, [syncReady]);
+  }, [syncReady, pullFromCloud]);
 
-  const syncRoundToCloud = (round: Round) => {
-    const normalized = normalizeRoundHoles(round);
-    void persistRound(normalized)
-      .then(setRounds)
-      .catch((error) => syncError('Failed to sync round to cloud', error));
-  };
+  useEffect(() => {
+    const flushPendingRound = () => {
+      const pending = pendingRoundRef.current;
+      if (!pending) return;
+      if (inProgressSyncTimer.current) clearTimeout(inProgressSyncTimer.current);
+      syncRoundToCloud(pending);
+    };
+
+    window.addEventListener('pagehide', flushPendingRound);
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flushPendingRound();
+    };
+    document.addEventListener('visibilitychange', onHide);
+
+    return () => {
+      window.removeEventListener('pagehide', flushPendingRound);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [syncRoundToCloud]);
 
   const syncSavedCourseFromRound = (round: Round) => {
     setSavedCourses((prev) => {
@@ -162,6 +225,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     const normalized = normalizeRoundHoles(activeRound);
     setRounds((prev) => mergeRoundList(prev, normalized));
 
+    pendingRoundRef.current = normalized;
     if (inProgressSyncTimer.current) clearTimeout(inProgressSyncTimer.current);
     inProgressSyncTimer.current = setTimeout(() => {
       syncRoundToCloud(normalized);
@@ -170,11 +234,14 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     return () => {
       if (inProgressSyncTimer.current) clearTimeout(inProgressSyncTimer.current);
     };
-  }, [activeRound, syncReady]);
+  }, [activeRound, syncReady, syncRoundToCloud]);
 
   const setProfile = (p: PlayerProfile) => {
     setProfileState(p);
-    saveProfile(p);
+    saveProfileCache(p);
+    void persistProfile(p)
+      .then(setProfileState)
+      .catch((error) => syncError('Failed to sync profile to cloud', error));
   };
 
   const startNewRound = () => {
@@ -186,6 +253,8 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     }
     const round = createEmptyRound();
     setActiveRoundState(round);
+    setRounds((prev) => mergeRoundList(prev, round));
+    if (syncReady) syncRoundToCloud(round);
     return round;
   };
 

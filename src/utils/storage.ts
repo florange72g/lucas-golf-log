@@ -83,5 +83,11 @@ export function saveProfile(profile: PlayerProfile): void {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
+/** @deprecated Use loadProfileCache — localStorage is cache only when Supabase is configured. */
+export const loadProfileCache = loadProfile;
+
+/** @deprecated Use saveProfileCache — localStorage is cache only when Supabase is configured. */
+export const saveProfileCache = saveProfile;
+
 // Re-export for consumers
 export type { Hole, HoleEntry, Round } from '../types';

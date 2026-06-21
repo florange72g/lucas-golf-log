@@ -1,23 +1,56 @@
 import { getSupabase, isSupabaseConfigured, logSupabaseStatus } from '../lib/supabase';
-import type { Round, SavedCourse } from '../types';
+import type { PlayerProfile, Round, SavedCourse } from '../types';
 import {
   loadSavedCoursesCache,
   saveSavedCoursesCache,
   seedSavedCoursesFromRounds,
 } from './savedCourses';
-import { loadRoundsCache, normalizeRound, saveRoundsCache, serializeRound } from './storage';
+import {
+  loadProfileCache,
+  loadRoundsCache,
+  normalizeProfile,
+  normalizeRound,
+  saveProfileCache,
+  saveRoundsCache,
+  serializeRound,
+} from './storage';
 import { syncError, syncLog } from './syncLog';
 
 type RoundRow = { id: string; data: Round; updated_at: string };
 type SavedCourseRow = { id: string; data: SavedCourse; updated_at: string };
+type ProfileRow = { id: string; data: PlayerProfile; updated_at: string };
+
+const PROFILE_ROW_ID = 'default';
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type CloudBootstrapResult = {
   rounds: Round[];
   savedCourses: SavedCourse[];
+  profile: PlayerProfile;
   source: 'supabase' | 'localStorage';
 };
 
 export { isSupabaseConfigured, logSupabaseStatus };
+
+function ensureValidUuid(id: string): string {
+  return UUID_RE.test(id) ? id : crypto.randomUUID();
+}
+
+function normalizeRoundForCloud(round: Round): Round {
+  const serialized = serializeRound(round);
+  const id = ensureValidUuid(serialized.id);
+  return id === serialized.id ? serialized : { ...serialized, id };
+}
+
+function normalizeRoundsForCloud(rounds: Round[]): Round[] {
+  return rounds.map(normalizeRoundForCloud);
+}
+
+function cacheProfile(profile: PlayerProfile, reason: string): void {
+  saveProfileCache(profile);
+  syncLog('Cached player profile to localStorage', { reason });
+}
 
 function roundUpdatedAt(round: Round): string {
   return round.createdAt ?? new Date().toISOString();
@@ -77,25 +110,52 @@ export async function fetchSavedCoursesFromCloud(): Promise<SavedCourse[]> {
   return courses;
 }
 
+export async function fetchProfileFromCloud(): Promise<PlayerProfile | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  syncLog('SELECT player_profile from Supabase…');
+  const { data, error } = await supabase
+    .from('player_profile')
+    .select('id, data, updated_at')
+    .eq('id', PROFILE_ROW_ID)
+    .maybeSingle();
+
+  if (error) {
+    syncError('SELECT player_profile FAILED', error);
+    throw error;
+  }
+
+  if (!data) {
+    syncLog('SELECT player_profile OK', { count: 0 });
+    return null;
+  }
+
+  const profile = normalizeProfile((data as ProfileRow).data);
+  syncLog('SELECT player_profile OK', { name: profile.name });
+  return profile;
+}
+
 export async function upsertRoundToCloud(round: Round): Promise<void> {
   const supabase = getSupabase();
   if (!supabase) return;
 
+  const normalized = normalizeRoundForCloud(round);
   const row = {
-    id: round.id,
-    data: serializeRound(round),
+    id: normalized.id,
+    data: normalized,
     updated_at: new Date().toISOString(),
   };
 
-  syncLog('UPSERT round to Supabase', { id: round.id, course: round.courseName || '(untitled)' });
+  syncLog('UPSERT round to Supabase', { id: normalized.id, course: normalized.courseName || '(untitled)' });
   const { data, error } = await supabase.from('rounds').upsert(row, { onConflict: 'id' }).select('id');
 
   if (error) {
-    syncError('UPSERT round FAILED', { id: round.id, error });
+    syncError('UPSERT round FAILED', { id: normalized.id, error });
     throw error;
   }
 
-  syncLog('UPSERT round OK', { id: round.id, rowsReturned: data?.length ?? 0 });
+  syncLog('UPSERT round OK', { id: normalized.id, rowsReturned: data?.length ?? 0 });
 }
 
 export async function upsertSavedCourseToCloud(course: SavedCourse): Promise<void> {
@@ -135,13 +195,37 @@ export async function deleteSavedCourseFromCloud(id: string): Promise<void> {
   syncLog('DELETE saved_course OK', { id });
 }
 
+export async function upsertProfileToCloud(profile: PlayerProfile): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const row = {
+    id: PROFILE_ROW_ID,
+    data: profile,
+    updated_at: new Date().toISOString(),
+  };
+
+  syncLog('UPSERT player_profile to Supabase', { name: profile.name });
+  const { data, error } = await supabase
+    .from('player_profile')
+    .upsert(row, { onConflict: 'id' })
+    .select('id');
+
+  if (error) {
+    syncError('UPSERT player_profile FAILED', error);
+    throw error;
+  }
+
+  syncLog('UPSERT player_profile OK', { rowsReturned: data?.length ?? 0 });
+}
+
 export async function upsertRoundsToCloud(rounds: Round[]): Promise<void> {
   const supabase = getSupabase();
   if (!supabase || rounds.length === 0) return;
 
-  const rows = rounds.map((round) => ({
+  const rows = normalizeRoundsForCloud(rounds).map((round) => ({
     id: round.id,
-    data: serializeRound(round),
+    data: round,
     updated_at: roundUpdatedAt(round),
   }));
 
@@ -280,12 +364,14 @@ export async function bootstrapFromCloud(): Promise<CloudBootstrapResult> {
 
   const localRounds = loadRoundsCache();
   const localCourses = loadSavedCoursesCache();
+  const localProfile = loadProfileCache();
   const localSeededCourses = seedSavedCoursesFromRounds(localRounds, localCourses);
 
   if (!isSupabaseConfigured()) {
     return {
       rounds: localRounds,
       savedCourses: localSeededCourses,
+      profile: localProfile,
       source: 'localStorage',
     };
   }
@@ -294,37 +380,71 @@ export async function bootstrapFromCloud(): Promise<CloudBootstrapResult> {
 
   let cloudRounds = await fetchRoundsFromCloud();
   let cloudCourses = await fetchSavedCoursesFromCloud();
+  let cloudProfile = await fetchProfileFromCloud().catch((error) => {
+    syncError('Profile fetch failed during bootstrap — using local profile', error);
+    return null;
+  });
 
-  const mergedRounds = mergeLocalOnlyRounds(cloudRounds, localRounds);
+  const mergedRounds = normalizeRoundsForCloud(
+    mergeLocalOnlyRounds(cloudRounds, localRounds),
+  );
   const mergedCourses = mergeSavedCoursesLists(cloudCourses, localSeededCourses);
+  const localOnlyCount = mergedRounds.length - cloudRounds.length;
 
-  if (mergedRounds.length > 0) {
-    await upsertRoundsToCloud(mergedRounds);
-    cloudRounds = await fetchRoundsFromCloud();
+  if (localOnlyCount > 0) {
+    syncLog('Migrating local-only rounds to Supabase', { count: localOnlyCount });
   }
 
-  if (mergedCourses.length > 0) {
-    await upsertSavedCoursesToCloud(mergedCourses);
-    cloudCourses = await fetchSavedCoursesFromCloud();
+  try {
+    const localOnlyRounds = mergedRounds.filter(
+      (round) => !cloudRounds.some((cloudRound) => cloudRound.id === round.id),
+    );
+    if (localOnlyRounds.length > 0) {
+      await upsertRoundsToCloud(localOnlyRounds);
+      cloudRounds = await fetchRoundsFromCloud();
+    }
+  } catch (error) {
+    syncError('Round migration upload failed — continuing with fetched cloud data', error);
+  }
+
+  try {
+    if (cloudCourses.length === 0 && mergedCourses.length > 0) {
+      await upsertSavedCoursesToCloud(mergedCourses);
+      cloudCourses = await fetchSavedCoursesFromCloud();
+    }
+  } catch (error) {
+    syncError('Saved course migration upload failed — continuing with fetched cloud data', error);
+  }
+
+  try {
+    if (!cloudProfile) {
+      await upsertProfileToCloud(localProfile);
+      cloudProfile = await fetchProfileFromCloud();
+    }
+  } catch (error) {
+    syncError('Profile migration upload failed — using local profile', error);
   }
 
   const savedCourses =
     cloudCourses.length > 0 ? cloudCourses : seedSavedCoursesFromRounds(cloudRounds, []);
+  const profile = cloudProfile ?? localProfile;
 
   cacheRounds(cloudRounds, 'bootstrap complete');
   cacheSavedCourses(savedCourses, 'bootstrap complete');
+  cacheProfile(profile, 'bootstrap complete');
 
   syncLog('Bootstrap complete — using Supabase data', {
     rounds: cloudRounds.length,
     savedCourses: savedCourses.length,
+    profile: profile.name,
   });
 
-  return { rounds: cloudRounds, savedCourses, source: 'supabase' };
+  return { rounds: cloudRounds, savedCourses, profile, source: 'supabase' };
 }
 
 /** Save one round to Supabase, refetch all rounds, update cache. */
 export async function persistRound(round: Round): Promise<Round[]> {
-  const serialized = serializeRound(round);
+  const serialized = normalizeRoundForCloud(round);
 
   if (!isSupabaseConfigured()) {
     const cached = loadRoundsCache();
@@ -344,15 +464,31 @@ export async function persistRound(round: Round): Promise<Round[]> {
   return fresh;
 }
 
+/** Save player profile to Supabase, refetch, update cache. */
+export async function persistProfile(profile: PlayerProfile): Promise<PlayerProfile> {
+  const normalized = normalizeProfile(profile);
+
+  if (!isSupabaseConfigured()) {
+    cacheProfile(normalized, 'persistProfile offline');
+    syncLog('Saved profile to localStorage only (no Supabase)', { name: normalized.name });
+    return normalized;
+  }
+
+  await upsertProfileToCloud(normalized);
+  const fresh = (await fetchProfileFromCloud()) ?? normalized;
+  cacheProfile(fresh, 'after persistProfile');
+  return fresh;
+}
+
 /** Save all rounds to Supabase, refetch, update cache. */
 export async function persistAllRounds(rounds: Round[]): Promise<Round[]> {
   if (!isSupabaseConfigured()) {
-    cacheRounds(rounds.map(serializeRound), 'persistAllRounds offline');
+    cacheRounds(rounds.map(normalizeRoundForCloud), 'persistAllRounds offline');
     syncLog('Saved rounds to localStorage only (no Supabase)', { count: rounds.length });
     return rounds;
   }
 
-  await upsertRoundsToCloud(rounds.map(serializeRound));
+  await upsertRoundsToCloud(rounds.map(normalizeRoundForCloud));
   const fresh = await fetchRoundsFromCloud();
   cacheRounds(fresh, 'after persistAllRounds');
   return fresh;
@@ -425,17 +561,24 @@ export async function refreshFromCloud(): Promise<CloudBootstrapResult> {
   if (!isSupabaseConfigured()) {
     const localRounds = loadRoundsCache();
     const localCourses = seedSavedCoursesFromRounds(localRounds, loadSavedCoursesCache());
-    return { rounds: localRounds, savedCourses: localCourses, source: 'localStorage' };
+    return {
+      rounds: localRounds,
+      savedCourses: localCourses,
+      profile: loadProfileCache(),
+      source: 'localStorage',
+    };
   }
 
   syncLog('Refreshing from Supabase…');
   const rounds = await fetchRoundsFromCloud();
-  const savedCourses = await fetchSavedCoursesFromCloud();
-  const courses =
-    savedCourses.length > 0 ? savedCourses : seedSavedCoursesFromRounds(rounds, []);
+  const savedCoursesRaw = await fetchSavedCoursesFromCloud();
+  const savedCourses =
+    savedCoursesRaw.length > 0 ? savedCoursesRaw : seedSavedCoursesFromRounds(rounds, []);
+  const profile = (await fetchProfileFromCloud()) ?? loadProfileCache();
   cacheRounds(rounds, 'refresh');
-  cacheSavedCourses(courses, 'refresh');
-  return { rounds, savedCourses: courses, source: 'supabase' };
+  cacheSavedCourses(savedCourses, 'refresh');
+  cacheProfile(profile, 'refresh');
+  return { rounds, savedCourses, profile, source: 'supabase' };
 }
 
 // Legacy aliases used during refactor

@@ -59,3 +59,33 @@ create policy "Allow anon delete saved_courses"
   on public.saved_courses for delete
   to anon
   using (true);
+
+-- Player profile (single row for Lucas Golf Log)
+create table if not exists public.player_profile (
+  id text primary key default 'default',
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.player_profile enable row level security;
+
+create policy "Allow anon read player_profile"
+  on public.player_profile for select
+  to anon
+  using (true);
+
+create policy "Allow anon insert player_profile"
+  on public.player_profile for insert
+  to anon
+  with check (true);
+
+create policy "Allow anon update player_profile"
+  on public.player_profile for update
+  to anon
+  using (true)
+  with check (true);
+
+create policy "Allow anon delete player_profile"
+  on public.player_profile for delete
+  to anon
+  using (true);
