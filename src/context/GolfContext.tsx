@@ -27,6 +27,7 @@ import {
   upsertSavedCourse,
 } from '../utils/savedCourses';
 import { isRoundLocked } from '../utils/roundLock';
+import { formatSyncError } from '../utils/syncError';
 import { syncError as logSyncError } from '../utils/syncLog';
 import {
   loadProfileCache,
@@ -140,7 +141,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         setSyncError(null);
       })
       .catch((error) => {
-        const message = error instanceof Error ? error.message : 'Refresh failed';
+        const message = formatSyncError(error);
         setSyncError(message);
         logSyncError('Refresh from cloud failed', error);
       });
@@ -154,7 +155,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
       setLastSyncedAt(new Date().toISOString());
       setSyncError(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed';
+      const message = formatSyncError(error);
       setSyncError(message);
       logSyncError('Manual sync failed', error);
     }
@@ -174,7 +175,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
       })
       .catch((error) => {
         if (cancelled) return;
-        const message = error instanceof Error ? error.message : 'Bootstrap failed';
+        const message = formatSyncError(error);
         setSyncError(message);
         logSyncError('Bootstrap failed — using localStorage cache', error);
         const cachedRounds = loadRoundsCache();

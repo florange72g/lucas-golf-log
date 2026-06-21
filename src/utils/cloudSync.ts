@@ -14,7 +14,8 @@ import {
   saveRoundsCache,
   serializeRound,
 } from './storage';
-import { syncError, syncLog } from './syncLog';
+import { syncError, syncLog, syncWarn } from './syncLog';
+import { isMissingTableError } from './syncError';
 
 type RoundRow = { id: string; data: Round; updated_at: string };
 type SavedCourseRow = { id: string; data: SavedCourse; updated_at: string };
@@ -122,6 +123,10 @@ export async function fetchProfileFromCloud(): Promise<PlayerProfile | null> {
     .maybeSingle();
 
   if (error) {
+    if (isMissingTableError(error)) {
+      syncWarn('SELECT player_profile skipped — table not created yet', error);
+      return null;
+    }
     syncError('SELECT player_profile FAILED', error);
     throw error;
   }
@@ -212,6 +217,10 @@ export async function upsertProfileToCloud(profile: PlayerProfile): Promise<void
     .select('id');
 
   if (error) {
+    if (isMissingTableError(error)) {
+      syncWarn('UPSERT player_profile skipped — table not created yet', error);
+      return;
+    }
     syncError('UPSERT player_profile FAILED', error);
     throw error;
   }
@@ -574,7 +583,15 @@ export async function refreshFromCloud(): Promise<CloudBootstrapResult> {
   const savedCoursesRaw = await fetchSavedCoursesFromCloud();
   const savedCourses =
     savedCoursesRaw.length > 0 ? savedCoursesRaw : seedSavedCoursesFromRounds(rounds, []);
-  const profile = (await fetchProfileFromCloud()) ?? loadProfileCache();
+  const profile =
+    (await fetchProfileFromCloud().catch((error) => {
+      if (isMissingTableError(error)) {
+        syncWarn('Profile refresh skipped — table not created yet');
+        return null;
+      }
+      syncError('Profile refresh failed — using local profile', error);
+      return null;
+    })) ?? loadProfileCache();
   cacheRounds(rounds, 'refresh');
   cacheSavedCourses(savedCourses, 'refresh');
   cacheProfile(profile, 'refresh');

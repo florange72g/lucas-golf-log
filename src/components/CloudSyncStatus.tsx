@@ -38,7 +38,14 @@ export default function CloudSyncStatus() {
             {formatSyncedAt(lastSyncedAt)}
           </p>
           {syncError && (
-            <p className="mt-1 text-[10px] font-medium text-red-600">{syncError}</p>
+            <p className="mt-1 break-words text-[10px] font-medium leading-snug text-red-600">
+              {syncError}
+              {/player_profile|could not find the table/i.test(syncError) && (
+                <span className="block text-amber-700">
+                  Run the player_profile SQL in Supabase (optional — rounds still sync).
+                </span>
+              )}
+            </p>
           )}
           {!supabaseDebug.configured && (
             <p className="mt-1 text-[10px] text-amber-700">
