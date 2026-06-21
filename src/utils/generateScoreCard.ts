@@ -12,20 +12,20 @@ import {
 
 const BG_SRC = '/lucas-scorecard-bg.png';
 const WIDTH = 1000;
-const HEIGHT = 1150;
+const HEIGHT = 1200;
 const PANEL_W = 400;
 const PHOTO_W = WIDTH - PANEL_W;
 const CARD_RADIUS = 20;
 
 const PANEL_BG = '#0c3b2e';
 const WHITE = '#ffffff';
-const SCORE_GREEN = '#6ee7a0';
+const TEXT_DARK = '#1b3528';
+const SCORE_GREEN = '#2d6a4f';
 const LINE = 'rgba(255,255,255,0.28)';
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
     img.src = src;
@@ -100,10 +100,13 @@ function drawScoreMarker(
   cy: number,
   score: number,
   par: number,
+  onWhite = false,
 ): void {
   const marker = getScoreMarkerType(score, par);
+  const stroke = onWhite ? TEXT_DARK : WHITE;
+  const fill = onWhite ? TEXT_DARK : WHITE;
 
-  ctx.strokeStyle = WHITE;
+  ctx.strokeStyle = stroke;
   ctx.lineWidth = 1.5;
 
   switch (marker) {
@@ -131,27 +134,11 @@ function drawScoreMarker(
       break;
   }
 
-  ctx.fillStyle = WHITE;
+  ctx.fillStyle = fill;
   ctx.font = `${marker === 'par' ? '600' : '700'} 26px Helvetica, Arial, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(score), cx, cy);
-}
-
-function drawScoreBox(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  score: number | null,
-  par: number,
-): void {
-  ctx.strokeStyle = WHITE;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(x, y, w, h);
-  if (score === null) return;
-  drawScoreMarker(ctx, x + w / 2, y + h / 2, score, par);
 }
 
 function drawHoleRows(
@@ -159,41 +146,46 @@ function drawHoleRows(
   holes: { hole: number; score: number; par: number }[],
   startY: number,
   rowH: number,
-  innerX: number,
-  holeColW: number,
-  scoreBoxW: number,
-  scoreBoxH: number,
-  scoreX: number,
+  holeCenterX: number,
+  scoreCenterX: number,
 ): number {
   let y = startY;
   holes.forEach((hole) => {
+    const midY = y + rowH / 2;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.font = '600 22px Helvetica, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(hole.hole), innerX + holeColW / 2, y + rowH / 2);
-    drawScoreBox(ctx, scoreX, y + (rowH - scoreBoxH) / 2, scoreBoxW, scoreBoxH, hole.score, hole.par);
+    ctx.fillText(String(hole.hole), holeCenterX, midY);
+    drawScoreMarker(ctx, scoreCenterX, midY, hole.score, hole.par);
     y += rowH;
   });
   return y;
 }
 
-function openImageInNewTab(canvas: HTMLCanvasElement): void {
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const tab = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!tab) {
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }, 'image/png');
+function openScoreCardImage(canvas: HTMLCanvasElement, filename: string): void {
+  const dataUrl = canvas.toDataURL('image/png');
+  const tab = window.open('', '_blank', 'noopener,noreferrer');
+  if (tab) {
+    tab.document.write(
+      `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${filename}</title><style>body{margin:0;background:#111;display:flex;justify-content:center}img{max-width:100%;height:auto}</style></head><body><img src="${dataUrl}" alt="Score Card"/></body></html>`,
+    );
+    tab.document.close();
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function scoreCardFilename(round: Round): string {
+  const course = (round.courseName.trim() || 'Golf_Round').replace(/[^a-zA-Z0-9]+/g, '_');
+  const date = round.date.slice(0, 10);
+  return `Lucas_Score_Card_${course}_${date}.png`;
 }
 
 export async function generateScoreCard(round: Round): Promise<void> {
@@ -231,95 +223,100 @@ export async function generateScoreCard(round: Round): Promise<void> {
   ctx.fillStyle = PANEL_BG;
   ctx.fillRect(PHOTO_W, 0, PANEL_W, HEIGHT);
 
-  const pad = 20;
+  const pad = 26;
   const innerX = PHOTO_W + pad;
   const innerW = PANEL_W - pad * 2;
-  const holeColW = 78;
-  const dividerX = innerX + holeColW;
-  const scoreColW = innerW - holeColW;
-  const scoreBoxW = 56;
-  const scoreBoxH = 34;
-  const scoreX = dividerX + scoreColW - scoreBoxW - 4;
+  const holeColW = 54;
+  const colGap = 10;
+  const scoreColW = innerW - holeColW - colGap;
+  const dividerX = innerX + holeColW + colGap / 2;
+  const holeCenterX = innerX + holeColW / 2;
+  const scoreCenterX = innerX + holeColW + colGap + scoreColW / 2;
 
-  let y = 28;
+  let y = 36;
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
   ctx.font = '600 17px Helvetica, Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('HOLE', innerX + holeColW / 2, y + 14);
-  ctx.fillText('SCORE', dividerX + scoreColW / 2, y + 14);
-  y += 36;
+  ctx.fillText('HOLE', holeCenterX, y + 12);
+  ctx.fillText('SCORE', scoreCenterX, y + 12);
+  y += 40;
 
   ctx.strokeStyle = LINE;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(dividerX, y - 8);
-  ctx.lineTo(dividerX, HEIGHT - 130);
+  ctx.moveTo(dividerX, y - 10);
+  ctx.lineTo(dividerX, HEIGHT - 148);
   ctx.stroke();
 
-  const rowH = 38;
-  y = drawHoleRows(ctx, front, y, rowH, innerX, holeColW, scoreBoxW, scoreBoxH, scoreX);
+  const rowH = 42;
+  y = drawHoleRows(ctx, front, y, rowH, holeCenterX, scoreCenterX);
 
   ctx.beginPath();
-  ctx.moveTo(innerX, y + 4);
-  ctx.lineTo(innerX + innerW, y + 4);
+  ctx.moveTo(innerX, y + 8);
+  ctx.lineTo(innerX + innerW, y + 8);
   ctx.stroke();
-  y += 14;
+  y += 22;
 
-  y = drawHoleRows(ctx, back, y, rowH, innerX, holeColW, scoreBoxW, scoreBoxH, scoreX);
+  y = drawHoleRows(ctx, back, y, rowH, holeCenterX, scoreCenterX);
 
   ctx.beginPath();
-  ctx.moveTo(innerX, y + 6);
-  ctx.lineTo(innerX + innerW, y + 6);
+  ctx.moveTo(innerX, y + 10);
+  ctx.lineTo(innerX + innerW, y + 10);
   ctx.stroke();
-  y += 28;
+  y += 34;
 
   const halfW = innerW / 2;
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.font = '600 15px Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'center';
   ctx.fillText('FRONT', innerX + halfW / 2, y);
   ctx.fillText('BACK', innerX + halfW + halfW / 2, y);
-  y += 28;
+  y += 34;
   ctx.fillStyle = WHITE;
   ctx.font = '700 38px Helvetica, Arial, sans-serif';
   ctx.fillText(String(frontTotal), innerX + halfW / 2, y);
   ctx.fillText(String(backTotal), innerX + halfW + halfW / 2, y);
 
   ctx.beginPath();
-  ctx.moveTo(innerX + halfW, y - 36);
-  ctx.lineTo(innerX + halfW, y + 12);
+  ctx.moveTo(innerX + halfW, y - 40);
+  ctx.lineTo(innerX + halfW, y + 14);
   ctx.stroke();
 
-  y += 36;
-  ctx.font = '700 58px Helvetica, Arial, sans-serif';
+  y += 48;
+  const totalBarH = 82;
+  ctx.fillStyle = WHITE;
+  ctx.fillRect(innerX, y, innerW, totalBarH);
+  const totalBarMidY = y + totalBarH / 2;
+  ctx.font = '700 56px Helvetica, Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  const totalX = innerX + 8;
-  ctx.fillStyle = WHITE;
-  ctx.fillText(String(total), totalX, y);
+  const totalX = innerX + 18;
+  ctx.fillStyle = TEXT_DARK;
+  ctx.fillText(String(total), totalX, totalBarMidY);
   const totalWidth = ctx.measureText(String(total)).width;
   ctx.fillStyle = SCORE_GREEN;
-  ctx.font = '600 36px Helvetica, Arial, sans-serif';
-  ctx.fillText(`(${toPar})`, totalX + totalWidth + 12, y);
+  ctx.font = '600 38px Helvetica, Arial, sans-serif';
+  ctx.fillText(`(${toPar})`, totalX + totalWidth + 14, totalBarMidY);
+  y += totalBarH + 28;
 
-  const footerY = HEIGHT - 96;
   ctx.textAlign = 'center';
   ctx.fillStyle = WHITE;
   ctx.font = '500 22px Helvetica, Arial, sans-serif';
-  ctx.fillText(formatScoreCardDate(round.date), PHOTO_W + PANEL_W / 2, footerY);
+  ctx.fillText(formatScoreCardDate(round.date), PHOTO_W + PANEL_W / 2, y);
 
   const courseName = round.courseName.trim() || 'Golf Round';
   ctx.font = '500 19px Helvetica, Arial, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.fillText(courseName, PHOTO_W + PANEL_W / 2, footerY + 32);
+  ctx.fillText(courseName, PHOTO_W + PANEL_W / 2, y + 34);
 
   if (round.location.trim()) {
     ctx.font = '500 17px Helvetica, Arial, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.78)';
-    ctx.fillText(round.location.trim(), PHOTO_W + PANEL_W / 2, footerY + 58);
+    ctx.fillText(round.location.trim(), PHOTO_W + PANEL_W / 2, y + 62);
   }
 
   ctx.restore();
 
-  openImageInNewTab(canvas);
+  openScoreCardImage(canvas, scoreCardFilename(round));
 }

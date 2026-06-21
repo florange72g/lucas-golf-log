@@ -68,6 +68,9 @@ export default function RoundSummary() {
     try {
       if (isActive) saveActiveRound();
       await generateScoreCard(round);
+    } catch (error) {
+      console.error(error);
+      window.alert('Could not generate score card. Please refresh the app and try again.');
     } finally {
       setExporting(false);
     }
