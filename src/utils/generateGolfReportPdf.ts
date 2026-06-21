@@ -1,6 +1,12 @@
 import type { PlayerProfile, Round } from '../types';
 import { normalizeMental } from '../types';
 import { drawFullScorecard } from './pdfScorecard';
+import { drawHoleByHoleChart } from './pdfHoleChart';
+import {
+  drawCircularPhoto,
+  loadCircularPhoto,
+  PDF_PHOTO_SIZE_MM,
+} from './pdfPhoto';
 import {
   calcTotalScore,
   countFairways,
@@ -14,6 +20,62 @@ const FAIRWAY = { r: 27, g: 67, b: 50 };
 const GOLD = { r: 212, g: 168, b: 83 };
 const TEXT = { r: 27, g: 53, b: 40 };
 const MUTED = { r: 100, g: 120, b: 110 };
+const PDF_HEADER_H = 38;
+const PDF_HEADER_GOLD_H = 1.5;
+
+interface ReportHeaderContext {
+  profile: PlayerProfile;
+  round: Round;
+  pageW: number;
+  margin: number;
+  headerTextW: number;
+}
+
+function drawReportPageHeader(doc: import('jspdf').jsPDF, ctx: ReportHeaderContext): void {
+  const { profile, round, pageW, margin, headerTextW } = ctx;
+
+  doc.setFillColor(FAIRWAY.r, FAIRWAY.g, FAIRWAY.b);
+  doc.rect(0, 0, pageW, PDF_HEADER_H, 'F');
+  doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
+  doc.rect(0, PDF_HEADER_H, pageW, PDF_HEADER_GOLD_H, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  const courseTitleLines = doc.splitTextToSize(round.courseName || 'Golf Scorecard', headerTextW);
+  doc.text(courseTitleLines[0] ?? 'Golf Scorecard', margin, 15);
+
+  if (round.location.trim()) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
+    doc.text(round.location.trim(), margin, 20);
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
+  doc.text(formatReportDate(round.date), margin, round.location.trim() ? 26 : 23);
+
+  doc.setFontSize(9);
+  doc.setTextColor(220, 230, 220);
+  doc.text(`${profile.name} · Round Report`, margin, round.location.trim() ? 33 : 30);
+}
+
+function drawReportHeadersAndPhoto(
+  doc: import('jspdf').jsPDF,
+  ctx: ReportHeaderContext,
+  photoDataUrl: string | null,
+): void {
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    drawReportPageHeader(doc, ctx);
+    if (photoDataUrl) {
+      drawCircularPhoto(doc, photoDataUrl, ctx.pageW);
+    }
+  }
+}
 
 function pdfRatingText(rating: number): string {
   const n = Math.min(5, Math.max(0, Math.round(rating)));
@@ -69,7 +131,10 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 14;
   const contentW = pageW - margin * 2;
+  const headerTextW = contentW - PDF_PHOTO_SIZE_MM - 4;
   let y = 0;
+
+  const photoDataUrl = await loadCircularPhoto();
 
   const mental = normalizeMental(round.mental);
   const fw = countFairways(round.holes);
@@ -78,12 +143,20 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   const puttTotal = totalPutts(round.holes);
   const toPar = formatScoreToPar(scoreToPar(round.holes));
   const playerNotes = buildPlayerNotes(round);
+  const contentTop = round.location.trim() ? 49 : 46;
+  const headerCtx: ReportHeaderContext = {
+    profile,
+    round,
+    pageW,
+    margin,
+    headerTextW,
+  };
 
   const ensureSpace = (needed: number) => {
     const pageH = doc.internal.pageSize.getHeight();
     if (y + needed > pageH - margin) {
       doc.addPage();
-      y = margin;
+      y = contentTop;
     }
   };
 
@@ -129,33 +202,7 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
     y += lines.length * 5 + 4;
   };
 
-  doc.setFillColor(FAIRWAY.r, FAIRWAY.g, FAIRWAY.b);
-  doc.rect(0, 0, pageW, 38, 'F');
-  doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.rect(0, 38, pageW, 1.5, 'F');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(255, 255, 255);
-  doc.text(round.courseName || 'Golf Scorecard', margin, 15);
-
-  if (round.location.trim()) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
-    doc.text(round.location.trim(), margin, 20);
-  }
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.setTextColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.text(formatReportDate(round.date), margin, round.location.trim() ? 26 : 23);
-
-  doc.setFontSize(9);
-  doc.setTextColor(220, 230, 220);
-  doc.text(`${profile.name} · Round Report`, margin, round.location.trim() ? 33 : 30);
-
-  y = round.location.trim() ? 49 : 46;
+  y = contentTop;
 
   if (round.location.trim()) {
     drawInline('Location', round.location.trim());
@@ -182,6 +229,11 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   ensureSpace(95);
   const scorecardResult = drawFullScorecard(doc, margin, y, contentW, round.holes);
   y = scorecardResult.endY;
+
+  gap(6);
+  ensureSpace(72);
+  const chartResult = drawHoleByHoleChart(doc, margin, y, contentW, round.holes);
+  y += chartResult.height + 4;
 
   gap(4);
   drawSection('Round Statistics');
@@ -215,6 +267,8 @@ export async function generateRoundPdf(profile: PlayerProfile, round: Round): Pr
   doc.setDrawColor(FAIRWAY.r, FAIRWAY.g, FAIRWAY.b);
   doc.setLineWidth(0.2);
   doc.line(margin, y, pageW - margin, y);
+
+  drawReportHeadersAndPhoto(doc, headerCtx, photoDataUrl);
 
   openPdfInNewTab(doc);
 }

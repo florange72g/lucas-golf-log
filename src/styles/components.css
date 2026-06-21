@@ -24,6 +24,16 @@
     @apply w-full rounded-lg border border-sand bg-cream px-2 py-1.5 text-center text-sm font-semibold text-fairway-800 outline-none transition focus:border-fairway-400 focus:ring-2 focus:ring-fairway-200;
   }
 
+  .pdf-player-photo {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    object-fit: cover;
+    position: absolute;
+    top: 24px;
+    right: 52px;
+  }
+
   .score-marker {
     @apply inline-flex items-center justify-center leading-none font-bold text-fairway-800;
   }
