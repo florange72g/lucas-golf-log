@@ -16,7 +16,7 @@ export interface Hole {
   par: ParValue;
   yards: YardsValue;
   driver: string;
-  fairway: 'Hit' | 'Left' | 'Right' | 'N/A';
+  fairway: 'Hit' | 'Left' | 'Right' | 'Hit Left' | 'Hit Right' | 'N/A';
   gir: 'Hit' | 'Miss' | 'N/A';
   iron1: string;
   iron2: string;
@@ -41,12 +41,69 @@ type LegacyHole = Partial<HoleEntry> & {
 };
 
 export function normalizeFairway(value?: string): HoleEntry['fairway'] {
-  if (value === 'Hit' || value === 'Left' || value === 'Right' || value === 'N/A') return value;
+  if (
+    value === 'Hit' ||
+    value === 'Left' ||
+    value === 'Right' ||
+    value === 'Hit Left' ||
+    value === 'Hit Right' ||
+    value === 'N/A'
+  ) {
+    return value;
+  }
+  if (value?.toLowerCase() === 'hit left' || value === 'Hit-Left') return 'Hit Left';
+  if (value?.toLowerCase() === 'hit right' || value === 'Hit-Right') return 'Hit Right';
   if (value?.toLowerCase() === 'hit') return 'Hit';
   if (value?.toLowerCase() === 'left') return 'Left';
   if (value?.toLowerCase() === 'right') return 'Right';
   if (value?.toUpperCase() === 'N/A' || value?.toLowerCase() === 'n/a') return 'N/A';
   return '';
+}
+
+export function isFairwayHit(value: HoleEntry['fairway']): boolean {
+  return value === 'Hit' || value === 'Hit Left' || value === 'Hit Right';
+}
+
+export function isFairwayLeft(value: HoleEntry['fairway']): boolean {
+  return value === 'Left' || value === 'Hit Left';
+}
+
+export function isFairwayRight(value: HoleEntry['fairway']): boolean {
+  return value === 'Right' || value === 'Hit Right';
+}
+
+export function toggleFairwayHit(value: HoleEntry['fairway']): HoleEntry['fairway'] {
+  if (value === 'N/A') return 'Hit';
+  if (value === 'Hit') return '';
+  if (value === 'Hit Left') return 'Left';
+  if (value === 'Hit Right') return 'Right';
+  if (value === 'Left') return 'Hit Left';
+  if (value === 'Right') return 'Hit Right';
+  return 'Hit';
+}
+
+export function toggleFairwayLeft(value: HoleEntry['fairway']): HoleEntry['fairway'] {
+  if (value === 'N/A') return 'Left';
+  if (value === 'Hit') return 'Hit Left';
+  if (value === 'Hit Left') return 'Hit';
+  if (value === 'Hit Right') return 'Hit Left';
+  if (value === 'Left') return '';
+  if (value === 'Right') return 'Left';
+  return 'Left';
+}
+
+export function toggleFairwayRight(value: HoleEntry['fairway']): HoleEntry['fairway'] {
+  if (value === 'N/A') return 'Right';
+  if (value === 'Hit') return 'Hit Right';
+  if (value === 'Hit Right') return 'Hit';
+  if (value === 'Hit Left') return 'Hit Right';
+  if (value === 'Right') return '';
+  if (value === 'Left') return 'Right';
+  return 'Right';
+}
+
+export function toggleFairwayNA(value: HoleEntry['fairway']): HoleEntry['fairway'] {
+  return value === 'N/A' ? '' : 'N/A';
 }
 
 export function normalizeGIR(value?: string): HoleEntry['gir'] {

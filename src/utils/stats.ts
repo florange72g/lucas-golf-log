@@ -1,5 +1,5 @@
 import type { HoleEntry, Round } from '../types';
-import { isHoleLogged, isTournamentRound, normalizeMental } from '../types';
+import { isFairwayHit, isHoleLogged, isTournamentRound, normalizeMental } from '../types';
 import { parAsNumber } from './parInput';
 
 export function calcTotalScore(holes: HoleEntry[]): number {
@@ -27,7 +27,7 @@ export function countFairways(holes: HoleEntry[]): {
 } {
   const fairwayHoles = holes.filter((h) => typeof h.par === 'number' && h.par >= 4);
   const applicable = fairwayHoles.filter((h) => h.fairway !== 'N/A' && h.fairway !== '');
-  const hit = applicable.filter((h) => h.fairway === 'Hit').length;
+  const hit = applicable.filter((h) => isFairwayHit(h.fairway)).length;
   const left = applicable.filter((h) => h.fairway === 'Left').length;
   const right = applicable.filter((h) => h.fairway === 'Right').length;
   return { hit, left, right, total: applicable.length || fairwayHoles.length };
