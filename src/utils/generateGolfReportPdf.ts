@@ -108,11 +108,12 @@ export function buildGolfReportFilename(profile: PlayerProfile, round: Round): s
 }
 
 function openPdfInNewTab(doc: import('jspdf').jsPDF): void {
-  const pdfBlob = doc.output('blob');
-  const pdfUrl = URL.createObjectURL(pdfBlob);
-  const newTab = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+  const pdfUrl = URL.createObjectURL(doc.output('blob'));
+  const tab = window.open('', '_blank', 'noopener,noreferrer');
 
-  if (!newTab) {
+  if (tab) {
+    tab.location.href = pdfUrl;
+  } else {
     const link = document.createElement('a');
     link.href = pdfUrl;
     link.target = '_blank';
