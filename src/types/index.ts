@@ -245,6 +245,7 @@ export interface PlayerProfile {
   handicap: number;
   school: string;
   email: string;
+  coach: string;
   strength: string;
   developmentArea: string;
   tournamentResults: TournamentResult[];
@@ -256,6 +257,7 @@ export const DEFAULT_PROFILE: PlayerProfile = {
   handicap: -1,
   school: '',
   email: '',
+  coach: '',
   strength: 'Approach Play',
   developmentArea: 'Putting Inside 8 Feet',
   tournamentResults: [],

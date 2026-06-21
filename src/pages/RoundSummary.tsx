@@ -260,7 +260,7 @@ export default function RoundSummary() {
           </button>
         ) : (
           <Link to="/recruiting" className="btn-primary block w-full text-center">
-            View Recruiting Report
+            View Profile
           </Link>
         )}
       </div>

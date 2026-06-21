@@ -9,11 +9,13 @@ const DELETE_CONFIRM =
 
 interface SwipeableTournamentResultRowProps {
   result: TournamentResult;
+  locked: boolean;
   onDelete: (id: string) => void;
 }
 
 export default function SwipeableTournamentResultRow({
   result,
+  locked,
   onDelete,
 }: SwipeableTournamentResultRowProps) {
   const [offset, setOffset] = useState(0);
@@ -35,6 +37,7 @@ export default function SwipeableTournamentResultRow({
   };
 
   const handleTouchStart = (event: React.TouchEvent) => {
+    if (locked) return;
     startX.current = event.touches[0].clientX;
     startY.current = event.touches[0].clientY;
     startOffset.current = offset;
@@ -78,6 +81,11 @@ export default function SwipeableTournamentResultRow({
   };
 
   const handleDelete = () => {
+    if (locked) {
+      window.alert('Profile is locked. Unlock to delete tournament results.');
+      closeRow();
+      return;
+    }
     if (window.confirm(DELETE_CONFIRM)) {
       onDelete(result.id);
       return;
@@ -90,8 +98,9 @@ export default function SwipeableTournamentResultRow({
       <button
         type="button"
         onClick={handleDelete}
+        disabled={locked}
         aria-label={`Delete ${result.name}`}
-        className="swipe-row-delete absolute inset-y-0 right-0 flex w-[76px] flex-col items-center justify-center gap-1 bg-red-600 text-white print:hidden"
+        className="swipe-row-delete absolute inset-y-0 right-0 flex w-[76px] flex-col items-center justify-center gap-1 bg-red-600 text-white print:hidden disabled:opacity-40"
       >
         <DeleteIcon />
         <span className="text-[10px] font-bold uppercase tracking-wide">Delete</span>

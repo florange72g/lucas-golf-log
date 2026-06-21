@@ -8,16 +8,19 @@ import {
   roundStats,
   tournamentCompletedRounds,
 } from '../utils/stats';
+import { promptProfileUnlock } from '../utils/profileLock';
 import { formatHandicap, type PlayerProfile } from '../types';
 
 export default function RecruitingReport() {
   const { rounds, profile, setProfile } = useGolf();
   const [editing, setEditing] = useState(false);
+  const [profileUnlocked, setProfileUnlocked] = useState(false);
   const [draft, setDraft] = useState<PlayerProfile>(profile);
 
   const tournamentRounds = tournamentCompletedRounds(rounds);
   const stats = tournamentRounds.length > 0 ? roundStats(tournamentRounds) : null;
   const recentScores = lastTournamentScores(rounds, 10);
+  const profileLocked = !profileUnlocked;
 
   const saveProfile = () => {
     setProfile(draft);
@@ -25,6 +28,35 @@ export default function RecruitingReport() {
   };
 
   const handlePrint = () => window.print();
+
+  const lockProfile = () => {
+    setProfileUnlocked(false);
+    setEditing(false);
+    setDraft(profile);
+  };
+
+  const tryUnlockProfile = (): boolean => {
+    if (profileUnlocked) return true;
+    if (promptProfileUnlock()) {
+      setProfileUnlocked(true);
+      return true;
+    }
+    return false;
+  };
+
+  const handleEditClick = () => {
+    if (!tryUnlockProfile()) return;
+    setDraft(profile);
+    setEditing(true);
+  };
+
+  const handleLockClick = () => {
+    if (profileLocked) {
+      tryUnlockProfile();
+      return;
+    }
+    lockProfile();
+  };
 
   const handleDeleteTournamentResult = (id: string) => {
     const next = {
@@ -40,7 +72,7 @@ export default function RecruitingReport() {
   return (
     <>
       <PageHeader
-        title="Recruiting Report"
+        title="Profile"
         subtitle="Tournament performance summary"
         backTo="/"
         action={
@@ -68,12 +100,32 @@ export default function RecruitingReport() {
               <p className="text-xs font-semibold uppercase tracking-widest text-gold-600">Edit Profile</p>
             )}
             {!editing && (
+              <div className="flex shrink-0 items-center gap-2 print:hidden">
+                <button
+                  type="button"
+                  onClick={handleLockClick}
+                  aria-label={profileLocked ? 'Unlock profile to edit' : 'Lock profile'}
+                  title={profileLocked ? 'Unlock to edit' : 'Lock profile'}
+                  className="rounded-lg border border-sand p-1.5 text-fairway-600 active:bg-fairway-50"
+                >
+                  {profileLocked ? <LockIcon /> : <UnlockIcon />}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditClick}
+                  className="text-xs font-semibold text-fairway-500 underline"
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+            {editing && (
               <button
                 type="button"
-                onClick={() => { setDraft(profile); setEditing(true); }}
+                onClick={lockProfile}
                 className="shrink-0 text-xs font-semibold text-fairway-500 underline print:hidden"
               >
-                Edit
+                Cancel
               </button>
             )}
           </div>
@@ -95,6 +147,7 @@ export default function RecruitingReport() {
               />
               <ProfileField label="School" value={draft.school} onChange={(school) => setDraft({ ...draft, school })} />
               <ProfileField label="Email" value={draft.email} onChange={(email) => setDraft({ ...draft, email })} />
+              <ProfileField label="Coach" value={draft.coach} onChange={(coach) => setDraft({ ...draft, coach })} />
               <ProfileField
                 label="Strength"
                 value={draft.strength}
@@ -110,8 +163,11 @@ export default function RecruitingReport() {
               </button>
             </div>
           ) : (
-            <div className="mt-4 border-t border-sand pt-4">
+            <div className="mt-4 space-y-0 border-t border-sand pt-4">
               <ReportRow label="Handicap" value={formatHandicap(displayProfile.handicap)} />
+              {displayProfile.coach && (
+                <ReportRow label="Coach" value={displayProfile.coach} />
+              )}
             </div>
           )}
         </section>
@@ -122,13 +178,16 @@ export default function RecruitingReport() {
               Tournament Results
             </h3>
             <p className="mt-1 text-[10px] text-fairway-400 print:hidden">
-              Swipe left on a result to delete.
+              {profileLocked
+                ? 'Unlock profile to edit or delete results.'
+                : 'Swipe left on a result to delete.'}
             </p>
             <div className="mt-4 space-y-3">
               {displayProfile.tournamentResults.map((result) => (
                 <SwipeableTournamentResultRow
                   key={result.id}
                   result={result}
+                  locked={profileLocked}
                   onDelete={handleDeleteTournamentResult}
                 />
               ))}
@@ -206,6 +265,34 @@ export default function RecruitingReport() {
         </p>
       </div>
     </>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M8 11V8a4 4 0 0 1 8 0v3"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function UnlockIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M8 11V8a4 4 0 0 1 7.5-1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 

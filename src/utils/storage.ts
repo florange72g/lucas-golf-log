@@ -78,6 +78,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>): PlayerProfile {
     handicap: raw.handicap ?? DEFAULT_PROFILE.handicap,
     school: raw.school ?? '',
     email: raw.email ?? '',
+    coach: raw.coach ?? '',
     strength: raw.strength ?? DEFAULT_PROFILE.strength,
     developmentArea: raw.developmentArea ?? DEFAULT_PROFILE.developmentArea,
     tournamentResults,

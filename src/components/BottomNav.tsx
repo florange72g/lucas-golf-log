@@ -5,7 +5,7 @@ const STATIC_NAV = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
   { to: '/rounds', label: 'History', icon: HistoryIcon, end: false },
   { to: '/statistics', label: 'Stats', icon: ChartIcon, end: false },
-  { to: '/recruiting', label: 'Report', icon: DocIcon, end: false },
+  { to: '/recruiting', label: 'Profile', icon: DocIcon, end: false },
 ] as const;
 
 const ROUND_PATHS = ['/new-round', '/hole-entry', '/round-summary/active', '/mental', '/coach', '/edit-round'];
