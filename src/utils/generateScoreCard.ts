@@ -33,12 +33,14 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 function formatScoreCardDate(dateIso: string): string {
+  const isoDate = dateIso.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
   const d = new Date(dateIso);
   if (Number.isNaN(d.getTime())) return dateIso;
-  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(-2);
-  return `${dd}/${mm}/${yy}`;
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function clipRoundedRect(
