@@ -46,31 +46,33 @@ export default function RoundSetupForm({
     });
   };
 
-  const updateHoleLayout = (index: number, updates: Pick<HoleEntry, 'par' | 'yards'>) => {
-    const current = round.holes[index];
-    const par = updates.par ?? current.par;
-    const yards = updates.yards ?? current.yards;
+  const updateHoleLayout = (index: number, updates: Partial<Pick<HoleEntry, 'par' | 'yards'>>) => {
+    updateActiveRound((prev) => {
+      const current = prev.holes[index];
+      const par = updates.par !== undefined ? updates.par : current.par;
+      const yards = updates.yards !== undefined ? updates.yards : current.yards;
 
-    const parUpdates =
-      updates.par !== undefined && typeof par === 'number' && isValidPar(par)
-        ? {
-            score: Math.min(10, Math.max(1, par)),
-            ...(par === 3
-              ? { fairway: 'N/A' as const }
-              : current.fairway === 'N/A'
-                ? { fairway: '' as const }
-                : {}),
-          }
-        : {};
+      const parUpdates =
+        updates.par !== undefined && typeof par === 'number' && isValidPar(par)
+          ? {
+              score: Math.min(10, Math.max(1, par)),
+              ...(par === 3
+                ? { fairway: 'N/A' as const }
+                : current.fairway === 'N/A'
+                  ? { fairway: '' as const }
+                  : {}),
+            }
+          : {};
 
-    const newHoles = [...round.holes];
-    newHoles[index] = normalizeHole({
-      ...current,
-      par,
-      yards,
-      ...parUpdates,
+      const newHoles = [...prev.holes];
+      newHoles[index] = normalizeHole({
+        ...current,
+        par,
+        yards,
+        ...parUpdates,
+      });
+      return { holes: newHoles };
     });
-    updateActiveRound({ holes: newHoles });
   };
 
   const clearParError = (holeNumber: number) => {
@@ -134,7 +136,7 @@ export default function RoundSetupForm({
   const handleYardsBlur = (index: number, yards: HoleEntry['yards']) => {
     const normalized = normalizeYardsForBlur(yards);
     if (normalized !== yards) {
-      updateHoleLayout(index, { par: round.holes[index].par, yards: normalized });
+      updateHoleLayout(index, { yards: normalized });
     }
   };
 
@@ -300,7 +302,7 @@ export default function RoundSetupForm({
                     const value = e.target.value;
                     const par = value === '' ? '' : Number(value);
                     clearParError(hole.hole);
-                    updateHoleLayout(index, { par, yards: hole.yards });
+                    updateHoleLayout(index, { par });
                   }}
                   onFocus={handleSetupInputFocus}
                   onKeyDown={(e) => handleParKeyDown(e, index)}
@@ -325,7 +327,7 @@ export default function RoundSetupForm({
                   const value = e.target.value;
                   const yards = value === '' ? '' : Number(value);
                   if (value !== '' && Number.isNaN(yards)) return;
-                  updateHoleLayout(index, { par: hole.par, yards });
+                  updateHoleLayout(index, { yards });
                 }}
                 onFocus={handleSetupInputFocus}
                 onKeyDown={(e) => handleYardsKeyDown(e, index)}

@@ -55,28 +55,36 @@ function mergeRoundList(prev: Round[], normalized: Round): Round[] {
 }
 
 function reconcileActiveRound(cloudRounds: Round[], previous: Round | null): Round | null {
+  if (previous && !previous.completed) {
+    return normalizeRoundHoles(previous);
+  }
+
   const fromCloud = findInProgressRound(cloudRounds);
   if (fromCloud) return normalizeRoundHoles(fromCloud);
-
-  if (previous) {
-    const match = cloudRounds.find((round) => round.id === previous.id);
-    if (match && !match.completed) return normalizeRoundHoles(match);
-  }
 
   return null;
 }
 
+function mergeCloudRoundsWithLocalActive(cloudRounds: Round[], localActive: Round | null): Round[] {
+  if (localActive && !localActive.completed) {
+    return mergeRoundList(cloudRounds, normalizeRoundHoles(localActive));
+  }
+  return cloudRounds;
+}
+
 function applyCloudResult(
   result: CloudBootstrapResult,
+  localActive: Round | null,
   setRounds: (rounds: Round[]) => void,
   setSavedCourses: (courses: SavedCourse[]) => void,
   setProfileState: (profile: PlayerProfile) => void,
-  setActiveRoundState: (updater: (prev: Round | null) => Round | null) => void,
+  setActiveRoundState: (round: Round | null) => void,
 ): void {
-  setRounds(result.rounds);
+  const nextActive = reconcileActiveRound(result.rounds, localActive);
+  setRounds(mergeCloudRoundsWithLocalActive(result.rounds, nextActive));
   setSavedCourses(result.savedCourses);
   setProfileState(result.profile);
-  setActiveRoundState((prev) => reconcileActiveRound(result.rounds, prev));
+  setActiveRoundState(nextActive);
 }
 
 interface GolfContextValue {
@@ -93,7 +101,7 @@ interface GolfContextValue {
   setProfile: (profile: PlayerProfile) => void;
   startNewRound: () => Round;
   setActiveRound: (round: Round | null) => void;
-  updateActiveRound: (updates: Partial<Round>) => void;
+  updateActiveRound: (updates: Partial<Round> | ((prev: Round) => Partial<Round>)) => void;
   applySavedCourse: (course: SavedCourse) => void;
   saveActiveRound: () => void;
   saveEditedRound: () => void;
@@ -124,6 +132,11 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const [syncError, setSyncError] = useState<string | null>(null);
   const inProgressSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRoundRef = useRef<Round | null>(null);
+  const activeRoundRef = useRef<Round | null>(activeRound);
+
+  useEffect(() => {
+    activeRoundRef.current = activeRound;
+  }, [activeRound]);
 
   const syncRoundToCloud = useCallback((round: Round) => {
     const normalized = normalizeRoundHoles(round);
@@ -136,7 +149,14 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const pullFromCloud = useCallback(() => {
     void refreshFromCloud()
       .then((result) => {
-        applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
+        applyCloudResult(
+          result,
+          activeRoundRef.current,
+          setRounds,
+          setSavedCourses,
+          setProfileState,
+          setActiveRoundState,
+        );
         setSyncSource(result.source);
         setLastSyncedAt(new Date().toISOString());
         setSyncError(null);
@@ -151,7 +171,14 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const refreshNow = useCallback(async () => {
     try {
       const result = await refreshFromCloud();
-      applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
+      applyCloudResult(
+        result,
+        activeRoundRef.current,
+        setRounds,
+        setSavedCourses,
+        setProfileState,
+        setActiveRoundState,
+      );
       setSyncSource(result.source);
       setLastSyncedAt(new Date().toISOString());
       setSyncError(null);
@@ -168,7 +195,14 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     bootstrapFromCloudWithRetry()
       .then((result) => {
         if (cancelled) return;
-        applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
+        applyCloudResult(
+          result,
+          activeRoundRef.current,
+          setRounds,
+          setSavedCourses,
+          setProfileState,
+          setActiveRoundState,
+        );
         setSyncSource(result.source);
         setLastSyncedAt(new Date().toISOString());
         setSyncError(null);
@@ -304,15 +338,16 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     setActiveRoundState(round);
   };
 
-  const updateActiveRound = (updates: Partial<Round>) => {
+  const updateActiveRound = (updates: Partial<Round> | ((prev: Round) => Partial<Round>)) => {
     setActiveRoundState((prev) => {
       if (!prev) return prev;
       if (editingSavedRound) {
         const existing = rounds.find((r) => r.id === prev.id);
         if (existing && isRoundLocked(existing)) return prev;
       }
-      const next = { ...prev, ...updates };
-      return updates.holes ? normalizeRoundHoles(next) : next;
+      const patch = typeof updates === 'function' ? updates(prev) : updates;
+      const next = { ...prev, ...patch };
+      return patch.holes ? normalizeRoundHoles(next) : next;
     });
   };
 

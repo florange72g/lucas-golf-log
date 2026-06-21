@@ -52,9 +52,11 @@ export default function HoleEntry() {
   const roundToPar = scoreToPar(activeRound.holes);
 
   const updateHole = (updates: Partial<HoleEntry>) => {
-    const newHoles = [...activeRound.holes];
-    newHoles[holeIndex] = normalizeHole({ ...newHoles[holeIndex], ...updates });
-    updateActiveRound({ holes: newHoles });
+    updateActiveRound((prev) => {
+      const newHoles = [...prev.holes];
+      newHoles[holeIndex] = normalizeHole({ ...newHoles[holeIndex], ...updates });
+      return { holes: newHoles };
+    });
   };
 
   const roundId = activeRound.id;

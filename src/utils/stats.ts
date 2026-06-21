@@ -141,10 +141,17 @@ export function tournamentCompletedRounds(rounds: Round[]): Round[] {
   return completedRounds(rounds).filter(isTournamentRound);
 }
 
-export function lastTournamentScores(rounds: Round[], limit = 10): number[] {
+export function lastTournamentScores(
+  rounds: Round[],
+  limit = 10,
+): { id: string; score: number; name: string }[] {
   return tournamentCompletedRounds(rounds)
     .slice(0, limit)
-    .map((r) => calcTotalScore(r.holes));
+    .map((round) => ({
+      id: round.id,
+      score: calcTotalScore(round.holes),
+      name: round.tournamentName?.trim() || round.courseName?.trim() || 'Tournament',
+    }));
 }
 
 export function roundStats(rounds: Round[]) {

@@ -229,13 +229,18 @@ export default function RecruitingReport() {
                   Last {Math.min(recentScores.length, 10)} Tournament Scores
                 </h3>
                 <div className="mt-4 space-y-2">
-                  {recentScores.map((score, i) => (
-                    <p
-                      key={`${score}-${i}`}
-                      className="border-b border-sand pb-2 text-2xl font-bold tabular-nums text-fairway-800 last:border-0 last:pb-0"
+                  {recentScores.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-b border-sand pb-2 last:border-0 last:pb-0"
                     >
-                      {score}
-                    </p>
+                      <span className="text-2xl font-bold tabular-nums text-fairway-800">
+                        {entry.score}
+                      </span>
+                      <span className="text-xs font-medium leading-snug text-fairway-500">
+                        {entry.name}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </section>
