@@ -321,9 +321,9 @@ function ReportPairRow({
 
 function ReportPairCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-2">
+    <div className="flex items-baseline gap-1.5">
       <span className="text-sm font-medium text-fairway-600">{label}:</span>
-      <span className="text-right text-sm font-bold tabular-nums text-fairway-800">{value}</span>
+      <span className="text-sm font-bold tabular-nums text-fairway-800">{value}</span>
     </div>
   );
 }
