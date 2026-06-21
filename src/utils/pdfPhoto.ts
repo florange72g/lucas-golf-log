@@ -9,8 +9,8 @@ export const PDF_PHOTO_SIZE_MM = PDF_PHOTO_SIZE_PX * PX_TO_MM;
 export const PDF_PHOTO_TOP_MM = PDF_PHOTO_TOP_PX * PX_TO_MM;
 export const PDF_PHOTO_RIGHT_MM = PDF_PHOTO_RIGHT_PX * PX_TO_MM;
 
-/** Pan source image right inside the circle to reveal the subject's hands on the left. */
-const PHOTO_PAN_X = 0.14;
+/** Pan source image left inside the circle to reveal the subject's right hand. */
+const PHOTO_PAN_X = -0.22;
 
 function renderCircularPhotoDataUrl(img: HTMLImageElement, pixelSize: number): string | null {
   const canvas = document.createElement('canvas');
