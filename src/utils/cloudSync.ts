@@ -451,6 +451,26 @@ export async function bootstrapFromCloud(): Promise<CloudBootstrapResult> {
   return { rounds: cloudRounds, savedCourses, profile, source: 'supabase' };
 }
 
+/** Bootstrap with retries — helps on mobile networks and cold PWA starts. */
+export async function bootstrapFromCloudWithRetry(attempts = 3): Promise<CloudBootstrapResult> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      syncLog(`Bootstrap attempt ${attempt}/${attempts}`);
+      return await bootstrapFromCloud();
+    } catch (error) {
+      lastError = error;
+      syncError(`Bootstrap attempt ${attempt} failed`, error);
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 /** Save one round to Supabase, refetch all rounds, update cache. */
 export async function persistRound(round: Round): Promise<Round[]> {
   const serialized = normalizeRoundForCloud(round);

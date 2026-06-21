@@ -4,7 +4,7 @@ import { getSupabaseConfigDebug } from '../lib/supabase';
 
 function formatSyncedAt(iso: string | null): string {
   if (!iso) return 'not yet';
-  return new Date(iso).toLocaleTimeString(undefined, {
+  return new Date(iso).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit',

@@ -1,7 +1,14 @@
 import { registerSW } from 'virtual:pwa-register';
 import { syncLog } from './utils/syncLog';
 
-const UPDATE_INTERVAL_MS = 60 * 1000;
+const UPDATE_INTERVAL_MS = 30 * 1000;
+
+function activateWaitingWorker(registration: ServiceWorkerRegistration): void {
+  if (registration.waiting) {
+    syncLog('Activating waiting service worker');
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  }
+}
 
 export function registerPwaUpdates(): void {
   if (!import.meta.env.PROD) return;
@@ -15,8 +22,10 @@ export function registerPwaUpdates(): void {
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
 
+      activateWaitingWorker(registration);
+
       const checkForUpdate = () => {
-        registration.update().catch(() => {});
+        registration.update().then(() => activateWaitingWorker(registration)).catch(() => {});
       };
 
       checkForUpdate();
@@ -24,6 +33,7 @@ export function registerPwaUpdates(): void {
         if (document.visibilityState === 'visible') checkForUpdate();
       });
       window.addEventListener('focus', checkForUpdate);
+      window.addEventListener('pageshow', checkForUpdate);
       window.setInterval(checkForUpdate, UPDATE_INTERVAL_MS);
     },
   });

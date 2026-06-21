@@ -10,7 +10,7 @@ import {
 import type { PlayerProfile, Round, SavedCourse } from '../types';
 import { createEmptyRound } from '../types';
 import {
-  bootstrapFromCloud,
+  bootstrapFromCloudWithRetry,
   persistProfile,
   persistRound,
   persistSavedCourse,
@@ -37,7 +37,8 @@ import {
 } from '../utils/storage';
 
 const IN_PROGRESS_SYNC_MS = 1500;
-const CLOUD_REFRESH_MS = 30_000;
+const CLOUD_REFRESH_MS = 15_000;
+const MOBILE_BOOTSTRAP_RETRY_MS = 3000;
 
 function findInProgressRound(rounds: Round[]): Round | null {
   return rounds.find((r) => !r.completed) ?? null;
@@ -164,7 +165,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    bootstrapFromCloud()
+    bootstrapFromCloudWithRetry()
       .then((result) => {
         if (cancelled) return;
         applyCloudResult(result, setRounds, setSavedCourses, setProfileState, setActiveRoundState);
@@ -201,6 +202,9 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!syncReady) return;
 
+    pullFromCloud();
+    const retryTimer = window.setTimeout(pullFromCloud, MOBILE_BOOTSTRAP_RETRY_MS);
+
     const refresh = () => {
       if (document.visibilityState !== 'visible') return;
       pullFromCloud();
@@ -210,12 +214,15 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', refresh);
     window.addEventListener('focus', refresh);
     window.addEventListener('pageshow', refresh);
+    window.addEventListener('online', refresh);
 
     return () => {
+      window.clearTimeout(retryTimer);
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('focus', refresh);
       window.removeEventListener('pageshow', refresh);
+      window.removeEventListener('online', refresh);
     };
   }, [syncReady, pullFromCloud]);
 

@@ -1,5 +1,6 @@
 import type { PlayerProfile, Round } from '../types';
 import { DEFAULT_PROFILE } from '../types';
+import { DEFAULT_TOURNAMENT_RESULTS } from '../data/defaultTournamentResults';
 import { normalizeHole, normalizeMental, normalizeRoundType, serializeHole } from '../types';
 
 const ROUNDS_KEY = 'golf-log-rounds';
@@ -59,6 +60,17 @@ export const loadRounds = loadRoundsCache;
 export const saveRounds = saveRoundsCache;
 
 export function normalizeProfile(raw: Partial<PlayerProfile>): PlayerProfile {
+  const tournamentResults =
+    raw.tournamentResults && raw.tournamentResults.length > 0
+      ? raw.tournamentResults.map((result) => ({
+          id: result.id ?? crypto.randomUUID(),
+          name: result.name?.trim() ?? '',
+          finish: result.finish?.trim() ?? '',
+          scores: result.scores?.trim() ?? '',
+          url: result.url?.trim() ?? '',
+        }))
+      : DEFAULT_TOURNAMENT_RESULTS;
+
   return {
     name: raw.name ?? DEFAULT_PROFILE.name,
     gradYear: raw.gradYear ?? DEFAULT_PROFILE.gradYear,
@@ -67,6 +79,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>): PlayerProfile {
     email: raw.email ?? '',
     strength: raw.strength ?? DEFAULT_PROFILE.strength,
     developmentArea: raw.developmentArea ?? DEFAULT_PROFILE.developmentArea,
+    tournamentResults,
   };
 }
 

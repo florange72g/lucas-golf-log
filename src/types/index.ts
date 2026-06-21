@@ -231,6 +231,14 @@ export function isTournamentRound(round: Pick<Round, 'roundType'>): boolean {
   return round.roundType === 'tournament';
 }
 
+export interface TournamentResult {
+  id: string;
+  name: string;
+  finish: string;
+  scores: string;
+  url: string;
+}
+
 export interface PlayerProfile {
   name: string;
   gradYear: number;
@@ -239,6 +247,7 @@ export interface PlayerProfile {
   email: string;
   strength: string;
   developmentArea: string;
+  tournamentResults: TournamentResult[];
 }
 
 export const DEFAULT_PROFILE: PlayerProfile = {
@@ -249,6 +258,7 @@ export const DEFAULT_PROFILE: PlayerProfile = {
   email: '',
   strength: 'Approach Play',
   developmentArea: 'Putting Inside 8 Feet',
+  tournamentResults: [],
 };
 
 export function formatHandicap(value: number): string {
