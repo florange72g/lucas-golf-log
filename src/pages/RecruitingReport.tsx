@@ -165,9 +165,9 @@ export default function RecruitingReport() {
           ) : (
             <div className="mt-4 space-y-0 border-t border-sand pt-4">
               <ReportRow label="Handicap" value={formatHandicap(displayProfile.handicap)} />
-              {displayProfile.coach && (
-                <ReportRow label="Coach" value={displayProfile.coach} />
-              )}
+              <ReportRow label="School" value={displayProfile.school || '—'} />
+              <ReportRow label="Email" value={displayProfile.email || '—'} />
+              <ReportRow label="Coach" value={displayProfile.coach || '—'} />
             </div>
           )}
         </section>
