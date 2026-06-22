@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import RoundSetupForm from '../components/RoundSetupForm';
@@ -7,13 +7,9 @@ import { hasStartedHoleEntry } from '../types';
 
 export default function NewRound() {
   const navigate = useNavigate();
-  const { activeRound, startNewRound, saveActiveRound, clearEditingRound, discardDraftRound } =
-    useGolf();
-  const started = useRef(false);
+  const { activeRound, startNewRound, saveActiveRound, clearEditingRound } = useGolf();
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
     clearEditingRound();
     if (activeRound && !activeRound.completed) {
       if (hasStartedHoleEntry(activeRound)) {
@@ -23,12 +19,6 @@ export default function NewRound() {
     }
     startNewRound();
   }, [activeRound, startNewRound, clearEditingRound, navigate]);
-
-  useEffect(() => {
-    return () => {
-      discardDraftRound();
-    };
-  }, [discardDraftRound]);
 
   if (!activeRound) return null;
 

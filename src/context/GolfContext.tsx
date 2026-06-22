@@ -327,7 +327,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
       .catch((error) => logSyncError('Failed to sync profile to cloud', error));
   };
 
-  const startNewRound = () => {
+  const startNewRound = useCallback(() => {
     setEditingSavedRound(false);
     const existing = findInProgressRound(rounds);
     if (existing) {
@@ -337,7 +337,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     const round = createEmptyRound();
     setActiveRoundState(round);
     return round;
-  };
+  }, [rounds]);
 
   const setActiveRound = (round: Round | null) => {
     setActiveRoundState(round);
@@ -410,12 +410,12 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     setEditingSavedRound(false);
   };
 
-  const discardDraftRound = () => {
+  const discardDraftRound = useCallback(() => {
     setActiveRoundState((prev) => {
       if (!prev || prev.completed || hasStartedHoleEntry(prev)) return prev;
       return null;
     });
-  };
+  }, []);
 
   const completeRound = () => {
     if (!activeRound) return;
