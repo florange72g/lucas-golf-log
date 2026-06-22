@@ -4,9 +4,6 @@ import PageHeader from '../components/PageHeader';
 import RoundLockControl from '../components/RoundLockControl';
 import StatCard from '../components/StatCard';
 import TodaysRoundSummary from '../components/TodaysRoundSummary';
-import FairwayStats from '../components/FairwayStats';
-import GIRStats from '../components/GIRStats';
-import PuttsStats from '../components/PuttsStats';
 import ScoreMarker from '../components/ScoreMarker';
 import { useGolf } from '../context/GolfContext';
 import type { HoleEntry } from '../types';
@@ -16,12 +13,8 @@ import { generateRoundPdf } from '../utils/generateGolfReportPdf';
 import { generateScoreCard } from '../utils/generateScoreCard';
 import {
   avgMentalScore,
-  countPutts,
-  totalPutts,
   backNine,
   calcTotalScore,
-  countFairways,
-  countGIR,
   formatScoreToPar,
   frontNine,
   nineScore,
@@ -52,9 +45,6 @@ export default function RoundSummary() {
 
   const total = calcTotalScore(round.holes);
   const toPar = scoreToPar(round.holes);
-  const fw = countFairways(round.holes);
-  const gir = countGIR(round.holes);
-  const putts = countPutts(round.holes);
   const dist = scoreDistribution(round.holes);
   const isActive = id === 'active';
   const holesWithNotes = round.holes.filter((hole) => hole.notes.trim());
@@ -163,31 +153,6 @@ export default function RoundSummary() {
         />
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-sand bg-white p-4 shadow-sm">
-            <FairwayStats
-              pct={fw.total ? Math.round((fw.hit / fw.total) * 100) : 0}
-              hit={fw.hit}
-              left={fw.left}
-              right={fw.right}
-            />
-          </div>
-          <div className="rounded-2xl border border-sand bg-white p-4 shadow-sm">
-            <GIRStats
-              pct={gir.total ? Math.round((gir.hit / gir.total) * 100) : 0}
-              hit={gir.hit}
-              miss={gir.miss}
-            />
-          </div>
-          <div className="col-span-2 rounded-2xl border border-sand bg-white p-4 shadow-sm">
-            <PuttsStats
-              label="Total Putts"
-              value={totalPutts(round.holes)}
-              sub="this round"
-              one={putts.one}
-              two={putts.two}
-              three={putts.three}
-            />
-          </div>
           <StatCard label="Birdies" value={dist.birdies} />
           <StatCard label="Bogeys+" value={dist.bogeys + dist.doubles + dist.others} />
         </div>
