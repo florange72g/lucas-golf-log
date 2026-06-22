@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { PlayerProfile, Round, SavedCourse } from '../types';
-import { createEmptyRound } from '../types';
+import { createEmptyRound, hasStartedHoleEntry } from '../types';
 import {
   bootstrapFromCloudWithRetry,
   persistProfile,
@@ -41,7 +41,11 @@ const CLOUD_REFRESH_MS = 15_000;
 const MOBILE_BOOTSTRAP_RETRY_MS = 3000;
 
 function findInProgressRound(rounds: Round[]): Round | null {
-  return rounds.find((r) => !r.completed) ?? null;
+  return rounds.find((round) => !round.completed && hasStartedHoleEntry(round)) ?? null;
+}
+
+function filterPersistedRounds(rounds: Round[]): Round[] {
+  return rounds.filter((round) => round.completed || hasStartedHoleEntry(round));
 }
 
 function mergeRoundList(prev: Round[], normalized: Round): Round[] {
@@ -81,7 +85,7 @@ function applyCloudResult(
   setActiveRoundState: (round: Round | null) => void,
 ): void {
   const nextActive = reconcileActiveRound(result.rounds, localActive);
-  setRounds(mergeCloudRoundsWithLocalActive(result.rounds, nextActive));
+  setRounds(filterPersistedRounds(mergeCloudRoundsWithLocalActive(result.rounds, nextActive)));
   setSavedCourses(result.savedCourses);
   setProfileState(result.profile);
   setActiveRoundState(nextActive);
@@ -108,6 +112,7 @@ interface GolfContextValue {
   loadRoundForEdit: (id: string) => boolean;
   resumeRound: (id: string) => boolean;
   clearEditingRound: () => void;
+  discardDraftRound: () => void;
   completeRound: () => void;
   deleteRound: (id: string) => void;
   deleteSavedCourse: (id: string) => void;
@@ -230,8 +235,9 @@ export function GolfProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!syncReady || !activeRound || activeRound.completed) return;
+    if (!hasStartedHoleEntry(activeRound)) return;
     syncRoundToCloud(activeRound);
-  }, [syncReady, activeRound?.id, syncRoundToCloud]);
+  }, [syncReady, activeRound?.id, activeRound?.holeEntryStarted, syncRoundToCloud]);
 
   useEffect(() => {
     if (!syncReady) return;
@@ -297,6 +303,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   // Keep in-progress round persisted while editing (survives refresh / mobile tab switch)
   useEffect(() => {
     if (!syncReady || !activeRound || activeRound.completed) return;
+    if (!hasStartedHoleEntry(activeRound)) return;
 
     const normalized = normalizeRoundHoles(activeRound);
     setRounds((prev) => mergeRoundList(prev, normalized));
@@ -329,8 +336,6 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     }
     const round = createEmptyRound();
     setActiveRoundState(round);
-    setRounds((prev) => mergeRoundList(prev, round));
-    if (syncReady) syncRoundToCloud(round);
     return round;
   };
 
@@ -360,7 +365,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
 
   const saveActiveRound = () => {
     if (!activeRound) return;
-    const normalized = normalizeRoundHoles(activeRound);
+    const normalized = normalizeRoundHoles({ ...activeRound, holeEntryStarted: true });
     setActiveRoundState(normalized);
     setRounds((prev) => mergeRoundList(prev, normalized));
     syncRoundToCloud(normalized);
@@ -388,7 +393,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const loadRoundForEdit = (id: string): boolean => {
     const round = rounds.find((r) => r.id === id);
     if (!round || isRoundLocked(round)) return false;
-    setActiveRoundState(normalizeRoundHoles({ ...round }));
+    setActiveRoundState(normalizeRoundHoles({ ...round, holeEntryStarted: true }));
     setEditingSavedRound(true);
     return true;
   };
@@ -396,13 +401,20 @@ export function GolfProvider({ children }: { children: ReactNode }) {
   const resumeRound = (id: string): boolean => {
     const round = rounds.find((r) => r.id === id);
     if (!round || round.completed) return false;
-    setActiveRoundState(normalizeRoundHoles({ ...round }));
+    setActiveRoundState(normalizeRoundHoles({ ...round, holeEntryStarted: true }));
     setEditingSavedRound(false);
     return true;
   };
 
   const clearEditingRound = () => {
     setEditingSavedRound(false);
+  };
+
+  const discardDraftRound = () => {
+    setActiveRoundState((prev) => {
+      if (!prev || prev.completed || hasStartedHoleEntry(prev)) return prev;
+      return null;
+    });
   };
 
   const completeRound = () => {
@@ -467,6 +479,7 @@ export function GolfProvider({ children }: { children: ReactNode }) {
         loadRoundForEdit,
         resumeRound,
         clearEditingRound,
+        discardDraftRound,
         completeRound,
         deleteRound,
         deleteSavedCourse,

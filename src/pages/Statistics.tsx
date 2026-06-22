@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import FairwayStats from '../components/FairwayStats';
@@ -7,6 +8,7 @@ import PuttsStats from '../components/PuttsStats';
 import TrendChart from '../components/TrendChart';
 import { useGolf } from '../context/GolfContext';
 import { isTournamentRound } from '../types';
+import { isStatsUnlocked, promptStatsUnlock } from '../utils/profileLock';
 import {
   calcTotalScore,
   completedRounds,
@@ -18,7 +20,24 @@ import {
 } from '../utils/stats';
 
 export default function Statistics() {
+  const navigate = useNavigate();
+  const [allowed, setAllowed] = useState(isStatsUnlocked());
   const { rounds, profile } = useGolf();
+
+  useEffect(() => {
+    if (isStatsUnlocked()) {
+      setAllowed(true);
+      return;
+    }
+    if (promptStatsUnlock()) {
+      setAllowed(true);
+      return;
+    }
+    navigate('/', { replace: true });
+  }, [navigate]);
+
+  if (!allowed) return null;
+
   const stats = roundStats(rounds);
   const completed = completedRounds(rounds);
   const trends = roundTrends(rounds, 10);

@@ -261,6 +261,8 @@ export interface Round {
   mental: MentalPerformance;
   coach: CoachReflection;
   completed: boolean;
+  /** False until the player taps Start Hole Entry on round setup. */
+  holeEntryStarted?: boolean;
   /** When true (or undefined on completed rounds), edit/delete are blocked. */
   isLocked?: boolean;
   createdAt: string;
@@ -378,6 +380,7 @@ export function createEmptyRound(): Round {
     mental: { ...DEFAULT_MENTAL },
     coach: { ...DEFAULT_COACH },
     completed: false,
+    holeEntryStarted: false,
     createdAt: new Date().toISOString(),
   };
 }
@@ -393,4 +396,13 @@ export function isHoleLogged(hole: HoleEntry): boolean {
     hole.notes !== '' ||
     hole.score !== hole.par
   );
+}
+
+/** True once hole entry has begun (or for legacy in-progress rounds already saved). */
+export function hasStartedHoleEntry(
+  round: Pick<Round, 'holeEntryStarted' | 'courseName' | 'holes' | 'completed'>,
+): boolean {
+  if (round.holeEntryStarted === true) return true;
+  if (round.holeEntryStarted === false) return false;
+  return !!round.courseName.trim() || round.holes.some(isHoleLogged);
 }

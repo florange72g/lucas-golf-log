@@ -4,7 +4,7 @@ import CloudSyncStatus from '../components/CloudSyncStatus';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import { useGolf } from '../context/GolfContext';
-import { isTournamentRound, formatHandicap } from '../types';
+import { hasStartedHoleEntry, isTournamentRound, formatHandicap } from '../types';
 import { calcTotalScore, completedRounds, formatScoreToPar, formatScoringAverage, roundStats, scoreToPar } from '../utils/stats';
 
 export default function Dashboard() {
@@ -22,7 +22,7 @@ export default function Dashboard() {
       <div className="-mt-3 space-y-5 px-4">
         <CloudSyncStatus />
 
-        {activeRound && (
+        {activeRound && hasStartedHoleEntry(activeRound) && (
           <Link
             to="/hole-entry"
             className="block rounded-2xl border-2 border-gold-400 bg-gradient-to-br from-fairway-700 to-fairway-800 p-5 text-white shadow-lg"

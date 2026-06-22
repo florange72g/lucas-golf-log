@@ -1,7 +1,7 @@
 import type { PlayerProfile, Round } from '../types';
 import { DEFAULT_PROFILE } from '../types';
 import { DEFAULT_TOURNAMENT_RESULTS, REMOVED_TOURNAMENT_IDS } from '../data/defaultTournamentResults';
-import { normalizeHole, normalizeMental, normalizeRoundType, serializeHole } from '../types';
+import { normalizeHole, normalizeMental, normalizeRoundType, serializeHole, hasStartedHoleEntry } from '../types';
 
 const ROUNDS_KEY = 'golf-log-rounds';
 const PROFILE_KEY = 'golf-log-profile';
@@ -28,6 +28,7 @@ export function normalizeRound(raw: Round & { tournament?: boolean }): Round {
     courseHandicap: round.courseHandicap ?? '',
     slopeRating: round.slopeRating ?? '',
     location: round.location ?? '',
+    holeEntryStarted: raw.holeEntryStarted ?? hasStartedHoleEntry(raw as Round),
     mental: normalizeMental(round.mental),
     holes: round.holes.map(normalizeHole),
   };
@@ -43,7 +44,8 @@ export function serializeRound(round: Round): Round {
 export function loadRoundsCache(): Round[] {
   try {
     const raw = localStorage.getItem(ROUNDS_KEY);
-    return raw ? (JSON.parse(raw) as Round[]).map(normalizeRound) : [];
+    const rounds = raw ? (JSON.parse(raw) as Round[]).map(normalizeRound) : [];
+    return rounds.filter((round) => round.completed || hasStartedHoleEntry(round));
   } catch {
     return [];
   }

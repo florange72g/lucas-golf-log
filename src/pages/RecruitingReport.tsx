@@ -212,9 +212,6 @@ export default function RecruitingReport() {
                   value={formatScoringAverage(stats.avgScore)}
                   light
                 />
-                <ReportRow label="Fairway %" value={`${stats.fairwayPct}%`} light />
-                <ReportRow label="GIR %" value={`${stats.girPct}%`} light />
-                <ReportRow label="Average Putts" value={stats.avgPutts.toFixed(1)} light />
                 <ReportRow
                   label="Birdies Per Round"
                   value={stats.birdiesPerRound.toFixed(1)}

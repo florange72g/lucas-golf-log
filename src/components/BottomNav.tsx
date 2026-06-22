@@ -1,5 +1,7 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useGolf } from '../context/GolfContext';
+import { hasStartedHoleEntry } from '../types';
+import { isStatsUnlocked, promptStatsUnlock } from '../utils/profileLock';
 
 const STATIC_NAV = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true },
@@ -11,7 +13,7 @@ const STATIC_NAV = [
 const ROUND_PATHS = ['/new-round', '/hole-entry', '/round-summary/active', '/mental', '/coach', '/edit-round'];
 
 export function getRoundNavPath(activeRound: ReturnType<typeof useGolf>['activeRound']): string {
-  if (activeRound?.courseName.trim()) return '/hole-entry';
+  if (activeRound && hasStartedHoleEntry(activeRound)) return '/hole-entry';
   return '/new-round';
 }
 
@@ -43,12 +45,19 @@ export default function BottomNav() {
             <span>Round</span>
           </NavLink>
 
-          {STATIC_NAV.slice(1).map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => navClass(isActive)}>
-              <Icon />
-              <span>{label}</span>
-            </NavLink>
-          ))}
+          {STATIC_NAV.slice(1).map(({ to, label, icon: Icon, end }) =>
+            to === '/statistics' ? (
+              <StatsNavButton
+                key={to}
+                isActive={location.pathname === '/statistics'}
+              />
+            ) : (
+              <NavLink key={to} to={to} end={end} className={({ isActive }) => navClass(isActive)}>
+                <Icon />
+                <span>{label}</span>
+              </NavLink>
+            ),
+          )}
         </div>
       </div>
     </nav>
@@ -59,6 +68,42 @@ function navClass(isActive: boolean): string {
   return `flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-2 text-[10px] font-medium transition-colors ${
     isActive ? 'bg-fairway-700 text-gold-400' : 'text-fairway-200 hover:text-white'
   }`;
+}
+
+function StatsNavButton({ isActive }: { isActive: boolean }) {
+  const navigate = useNavigate();
+  const locked = !isStatsUnlocked() && !isActive;
+
+  const handleClick = () => {
+    if (isActive) return;
+    if (isStatsUnlocked() || promptStatsUnlock()) {
+      navigate('/statistics');
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-label={locked ? 'Unlock Stats' : 'Stats'}
+      className={navClass(isActive)}
+    >
+      <ChartIcon />
+      <span className="flex items-center gap-0.5">
+        {locked && <LockIcon />}
+        Stats
+      </span>
+    </button>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function HomeIcon() {
