@@ -1,5 +1,6 @@
 import { getSupabase, isSupabaseConfigured, logSupabaseStatus } from '../lib/supabase';
 import type { PlayerProfile, Round, SavedCourse } from '../types';
+import { DEFAULT_PROFILE } from '../types';
 import {
   loadSavedCoursesCache,
   saveSavedCoursesCache,
@@ -51,6 +52,80 @@ function normalizeRoundsForCloud(rounds: Round[]): Round[] {
 function cacheProfile(profile: PlayerProfile, reason: string): void {
   saveProfileCache(profile);
   syncLog('Cached player profile to localStorage', { reason });
+}
+
+function profileTimestamp(profile: PlayerProfile): number {
+  if (!profile.updatedAt) return 0;
+  const ms = Date.parse(profile.updatedAt);
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+function hasMeaningfulProfileEdits(profile: PlayerProfile): boolean {
+  return !!(
+    profile.updatedAt ||
+    profile.school.trim() ||
+    profile.email.trim() ||
+    profile.coach.trim() ||
+    profile.gpa.trim() ||
+    profile.sat.trim() ||
+    profile.name !== DEFAULT_PROFILE.name ||
+    profile.handicap !== DEFAULT_PROFILE.handicap ||
+    profile.gradYear !== DEFAULT_PROFILE.gradYear
+  );
+}
+
+function mergePlayerProfiles(cloud: PlayerProfile | null, local: PlayerProfile): PlayerProfile {
+  const normalizedLocal = normalizeProfile(local);
+  if (!cloud) return normalizedLocal;
+
+  const normalizedCloud = normalizeProfile(cloud);
+  const cloudMs = profileTimestamp(normalizedCloud);
+  const localMs = profileTimestamp(normalizedLocal);
+
+  if (localMs > cloudMs) return normalizedLocal;
+  if (cloudMs > localMs) return normalizedCloud;
+
+  // No timestamps — prefer cloud when it has user content, otherwise local edits.
+  if (hasMeaningfulProfileEdits(normalizedCloud)) return normalizedCloud;
+  return normalizedLocal;
+}
+
+async function syncProfileWithCloud(local: PlayerProfile): Promise<PlayerProfile> {
+  const normalizedLocal = normalizeProfile(local);
+
+  if (!isSupabaseConfigured()) {
+    cacheProfile(normalizedLocal, 'syncProfile offline');
+    return normalizedLocal;
+  }
+
+  const cloud = await fetchProfileFromCloud().catch((error) => {
+    if (!isMissingTableError(error)) {
+      syncError('Profile fetch failed during sync', error);
+    }
+    return null;
+  });
+
+  const merged = mergePlayerProfiles(cloud, normalizedLocal);
+  const cloudMs = cloud ? profileTimestamp(cloud) : 0;
+  const localMs = profileTimestamp(normalizedLocal);
+  const shouldUpload = !cloud
+    ? hasMeaningfulProfileEdits(merged)
+    : localMs > cloudMs;
+
+  if (!shouldUpload) {
+    cacheProfile(merged, 'syncProfile cloud wins');
+    return merged;
+  }
+
+  const toUpload = normalizeProfile({
+    ...merged,
+    updatedAt: new Date().toISOString(),
+  });
+
+  await upsertProfileToCloud(toUpload);
+  const fresh = (await fetchProfileFromCloud()) ?? toUpload;
+  cacheProfile(fresh, 'syncProfile uploaded');
+  return fresh;
 }
 
 function roundUpdatedAt(round: Round): string {
@@ -136,8 +211,12 @@ export async function fetchProfileFromCloud(): Promise<PlayerProfile | null> {
     return null;
   }
 
-  const profile = normalizeProfile((data as ProfileRow).data);
-  syncLog('SELECT player_profile OK', { name: profile.name });
+  const profile = normalizeProfile({
+    ...(data as ProfileRow).data,
+    updatedAt:
+      (data as ProfileRow).data.updatedAt ?? (data as ProfileRow).updated_at,
+  });
+  syncLog('SELECT player_profile OK', { name: profile.name, updatedAt: profile.updatedAt });
   return profile;
 }
 
@@ -219,7 +298,9 @@ export async function upsertProfileToCloud(profile: PlayerProfile): Promise<void
   if (error) {
     if (isMissingTableError(error)) {
       syncWarn('UPSERT player_profile skipped — table not created yet', error);
-      return;
+      throw new Error(
+        'player_profile table not found in Supabase. Run supabase/schema.sql in the SQL editor.',
+      );
     }
     syncError('UPSERT player_profile FAILED', error);
     throw error;
@@ -389,10 +470,7 @@ export async function bootstrapFromCloud(): Promise<CloudBootstrapResult> {
 
   let cloudRounds = await fetchRoundsFromCloud();
   let cloudCourses = await fetchSavedCoursesFromCloud();
-  let cloudProfile = await fetchProfileFromCloud().catch((error) => {
-    syncError('Profile fetch failed during bootstrap — using local profile', error);
-    return null;
-  });
+  let cloudProfile: PlayerProfile;
 
   const mergedRounds = normalizeRoundsForCloud(
     mergeLocalOnlyRounds(cloudRounds, localRounds),
@@ -426,17 +504,15 @@ export async function bootstrapFromCloud(): Promise<CloudBootstrapResult> {
   }
 
   try {
-    if (!cloudProfile) {
-      await upsertProfileToCloud(localProfile);
-      cloudProfile = await fetchProfileFromCloud();
-    }
+    cloudProfile = await syncProfileWithCloud(localProfile);
   } catch (error) {
-    syncError('Profile migration upload failed — using local profile', error);
+    syncError('Profile sync failed during bootstrap — using merged local profile', error);
+    cloudProfile = mergePlayerProfiles(null, localProfile);
   }
 
   const savedCourses =
     cloudCourses.length > 0 ? cloudCourses : seedSavedCoursesFromRounds(cloudRounds, []);
-  const profile = cloudProfile ?? localProfile;
+  const profile = cloudProfile ?? mergePlayerProfiles(null, localProfile);
 
   cacheRounds(cloudRounds, 'bootstrap complete');
   cacheSavedCourses(savedCourses, 'bootstrap complete');
@@ -495,7 +571,10 @@ export async function persistRound(round: Round): Promise<Round[]> {
 
 /** Save player profile to Supabase, refetch, update cache. */
 export async function persistProfile(profile: PlayerProfile): Promise<PlayerProfile> {
-  const normalized = normalizeProfile(profile);
+  const normalized = normalizeProfile({
+    ...profile,
+    updatedAt: new Date().toISOString(),
+  });
 
   if (!isSupabaseConfigured()) {
     cacheProfile(normalized, 'persistProfile offline');
@@ -603,15 +682,15 @@ export async function refreshFromCloud(): Promise<CloudBootstrapResult> {
   const savedCoursesRaw = await fetchSavedCoursesFromCloud();
   const savedCourses =
     savedCoursesRaw.length > 0 ? savedCoursesRaw : seedSavedCoursesFromRounds(rounds, []);
-  const profile =
-    (await fetchProfileFromCloud().catch((error) => {
-      if (isMissingTableError(error)) {
-        syncWarn('Profile refresh skipped — table not created yet');
-        return null;
-      }
+  let profile: PlayerProfile;
+  try {
+    profile = await syncProfileWithCloud(loadProfileCache());
+  } catch (error) {
+    if (!isMissingTableError(error)) {
       syncError('Profile refresh failed — using local profile', error);
-      return null;
-    })) ?? loadProfileCache();
+    }
+    profile = loadProfileCache();
+  }
   cacheRounds(rounds, 'refresh');
   cacheSavedCourses(savedCourses, 'refresh');
   cacheProfile(profile, 'refresh');

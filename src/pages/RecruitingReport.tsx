@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import SwipeableTournamentResultRow from '../components/SwipeableTournamentResultRow';
 import { useGolf } from '../context/GolfContext';
@@ -12,10 +12,20 @@ import { promptProfileUnlock } from '../utils/profileLock';
 import { formatHandicap, type PlayerProfile } from '../types';
 
 export default function RecruitingReport() {
-  const { rounds, profile, setProfile } = useGolf();
+  const { rounds, profile, setProfile, refreshNow } = useGolf();
   const [editing, setEditing] = useState(false);
   const [profileUnlocked, setProfileUnlocked] = useState(false);
   const [draft, setDraft] = useState<PlayerProfile>(profile);
+
+  useEffect(() => {
+    void refreshNow();
+  }, [refreshNow]);
+
+  useEffect(() => {
+    if (!editing) {
+      setDraft(profile);
+    }
+  }, [profile, editing]);
 
   const tournamentRounds = tournamentCompletedRounds(rounds);
   const stats = tournamentRounds.length > 0 ? roundStats(tournamentRounds) : null;

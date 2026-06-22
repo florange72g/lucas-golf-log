@@ -86,6 +86,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>): PlayerProfile {
     strength: raw.strength ?? DEFAULT_PROFILE.strength,
     developmentArea: raw.developmentArea ?? DEFAULT_PROFILE.developmentArea,
     tournamentResults,
+    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
   };
 }
 

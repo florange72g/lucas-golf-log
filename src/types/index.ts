@@ -310,6 +310,8 @@ export interface PlayerProfile {
   strength: string;
   developmentArea: string;
   tournamentResults: TournamentResult[];
+  /** ISO timestamp — used to pick the newest profile across devices. */
+  updatedAt?: string;
 }
 
 export const DEFAULT_PROFILE: PlayerProfile = {

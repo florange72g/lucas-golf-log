@@ -42,7 +42,7 @@ export default function CloudSyncStatus() {
               {syncError}
               {/player_profile|could not find the table/i.test(syncError) && (
                 <span className="block text-amber-700">
-                  Run the player_profile SQL in Supabase (optional — rounds still sync).
+                  Run the player_profile SQL in Supabase (Profile will not sync until this table exists).
                 </span>
               )}
             </p>

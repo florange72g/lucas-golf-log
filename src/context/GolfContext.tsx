@@ -323,8 +323,15 @@ export function GolfProvider({ children }: { children: ReactNode }) {
     setProfileState(p);
     saveProfileCache(p);
     void persistProfile(p)
-      .then(setProfileState)
-      .catch((error) => logSyncError('Failed to sync profile to cloud', error));
+      .then((fresh) => {
+        setProfileState(fresh);
+        setSyncError(null);
+      })
+      .catch((error) => {
+        const message = formatSyncError(error);
+        setSyncError(message);
+        logSyncError('Failed to sync profile to cloud', error);
+      });
   };
 
   const startNewRound = useCallback(() => {
